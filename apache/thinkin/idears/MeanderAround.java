@@ -1,0 +1,40 @@
+package apache.thinkin.idears;
+
+import apache.Cowboy;
+import apache.thinkin.BigPicture;
+import battlecode.common.Direction;
+import battlecode.common.GameActionException;
+import battlecode.common.RobotController;
+
+import static apache.RobotPlayer.directions;
+import static apache.RobotPlayer.rng;
+
+public class MeanderAround implements BrightIdea {
+
+    public static final int MOVE_TRIES = 16;
+
+    @Override
+    public int howAboutThat(BigPicture bigPicture, RobotController rc) {
+        if(isThereABaddie(bigPicture, rc))
+            return -1;
+        else
+            return 1;
+    }
+
+    private static boolean isThereABaddie(BigPicture bigPicture, RobotController rc) {
+        return bigPicture.muchachos.length>0;
+    }
+
+    @Override
+    public void getErDone(Cowboy yoursTruly) throws GameActionException {
+        RobotController rc = yoursTruly.me;
+        rc.setIndicatorString("Just meanderin' 'round");
+        for(int i = 0; i< MOVE_TRIES; i++){
+            Direction dir = directions[rng.nextInt(directions.length)];
+            if (rc.canMove(dir)){
+                yoursTruly.move(dir);
+                break;
+            }
+        }
+    }
+}
