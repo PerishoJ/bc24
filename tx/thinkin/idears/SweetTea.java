@@ -13,23 +13,26 @@ public class SweetTea implements BrightIdea{
     @Override
     public int howAboutThat(BigPicture bigPicture, RobotController rc) {
         bigPicture.friendInNeed = null;
-        if ( areThereCompadresAround(bigPicture)) {
-            Optional<RobotInfo> friendInNeed = Arrays.stream(bigPicture.compadres)
-                    .filter(f -> f.getHealth() < GameConstants.DEFAULT_HEALTH)
-                    .filter(f -> rc.canHeal(f.location))
-                    .findAny();
+        // heal people if nobody can shoot you, because it's just better to shoot back.
+        if ( !bigPicture.compadres.isEmpty()  // friends
+                && bigPicture.muchachos.isEmpty()) { // but no bad guys
+            RobotInfo friend = null;
+            for(RobotInfo f : bigPicture.compadres){
+                if ( f.getHealth() < GameConstants.DEFAULT_HEALTH
+                && rc.canHeal(f.location)){
+                    friend = f;
+                    break;
+                }
+            }
 
-            if (friendInNeed.isPresent()){
-                bigPicture.friendInNeed = friendInNeed.get();
+            if (friend!=null){
+                bigPicture.friendInNeed = friend;
                 return 15;
             }
         }
         return 0;
     }
 
-    private static boolean areThereCompadresAround(BigPicture bigPicture) {
-        return bigPicture.compadres.length > 0;
-    }
 
     @Override
     public void getErDone(Cowboy yoursTruly) throws GameActionException {

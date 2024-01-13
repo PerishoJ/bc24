@@ -16,7 +16,7 @@ public strictfp class RaiseHell implements BrightIdea{
     /**
      * Where you're gonna call the end of a fight.
      */
-    public static final int TOLERANCE = GameConstants.DEFAULT_HEALTH / 2;
+    public static final int TOLERANCE = 450; // about 3 shots left before your dead.
 
     /**If you's chicken shit, you run from a figh'*/
     public static final int CHICKEN_SHIT = 10;
@@ -78,71 +78,74 @@ public strictfp class RaiseHell implements BrightIdea{
     }
 
     private static boolean isThereAFight(BigPicture bigPicture) {
-        return bigPicture.muchachos.length > 0;
+        return bigPicture.muchachos.size() > 0;
     }
 
     private static boolean amILicked(RobotController rc) {
-        return rc.getHealth() > Cowboy.APPETITE_FOR_PUNISHMENT;
+        return rc.getHealth() <= Cowboy.APPETITE_FOR_PUNISHMENT;
     }
 
     public static boolean doIhaveMoreAmigosThanYou(BigPicture bigPicture) {
-        return bigPicture.compadres.length + 1 >= bigPicture.muchachos.length;
+        return bigPicture.compadres.size() + 1 >= bigPicture.muchachos.size();
     }
 
     @Override
     public void getErDone(Cowboy yoursTruly) throws GameActionException {
         RobotController me = yoursTruly.me;
         me.setIndicatorString("Raisin Hell!");
-        Optional<RobotInfo> poorSoul = findTheWeakOne(yoursTruly);
+        RobotInfo poorSoul = findTheWeakOne(yoursTruly);
 
-        poorSoul.ifPresent( weakling -> {
+        if (poorSoul != null )
+        {
             try {
-                drawAttackLine(yoursTruly, weakling);
+                drawAttackLine(yoursTruly, poorSoul);
                 //try to murder them as best you can
                 if(me.isActionReady()) {
-                    me.attack(weakling.getLocation());
+                    me.attack(poorSoul.getLocation());
                 }
             } catch (GameActionException e) {
-                System.err.println("Had trouble attacking "+ weakling);
+                System.err.println("Had trouble attacking "+ poorSoul);
                 System.err.println(e);
             }
-        });
-        //or else
-        if(justOutOfReach(yoursTruly, poorSoul)){
-            //Find the closest bad guy
-            int minDist = Integer.MAX_VALUE;
-            RobotInfo closest = null;
-            for(RobotInfo bad:yoursTruly.layOfTheLand.muchachos){
-                int distToBaddie = bad.location.distanceSquaredTo(me.getLocation());
-                if (distToBaddie<minDist){
-                    closest = bad;
-                    minDist = distToBaddie;
-                }
-            }
-            //Move towards that dude
-            if(closest!=null) {
-                drawAttackLine(yoursTruly, closest);
-                Direction dir = me.getLocation().directionTo(closest.getLocation());
-                if (me.isActionReady() && me.canMove(dir)) {
-                    try {
-                        yoursTruly.move(dir);
-                    } catch (GameActionException e) {
-                        System.err.println("Error trying to move to the stragglers");
-                    }
-                }
-            }
         }
+        // It's never a good idea to chase. Don't do it.
+        // Stand your ground. Take locations when the need arises.
+        //or else
+//        if(justOutOfReach(yoursTruly, poorSoul)){
+//            //Find the closest bad guy
+//            int minDist = Integer.MAX_VALUE;
+//            RobotInfo closest = null;
+//            for(RobotInfo bad:yoursTruly.layOfTheLand.muchachos){
+//                int distToBaddie = bad.location.distanceSquaredTo(me.getLocation());
+//                if (distToBaddie<minDist){
+//                    closest = bad;
+//                    minDist = distToBaddie;
+//                }
+//            }
+//            //Move towards that dude
+//            if(closest!=null) {
+//                drawAttackLine(yoursTruly, closest);
+//                Direction dir = me.getLocation().directionTo(closest.getLocation());
+//                if (me.isActionReady() && me.canMove(dir)) {
+//                    try {
+//                        yoursTruly.move(dir);
+//                    } catch (GameActionException e) {
+//                        System.err.println("Error trying to move to the stragglers");
+//                    }
+//                }
+//            }
+//        }
     }
 
-    private static boolean justOutOfReach(Cowboy yoursTruly, Optional<RobotInfo> poorSoul) {
-        return !poorSoul.isPresent() && yoursTruly.layOfTheLand.muchachos.length > 0;
-    }
+//    private static boolean justOutOfReach(Cowboy yoursTruly, RobotInfo poorSoul) {
+//        return poorSoul==null && !yoursTruly.layOfTheLand.muchachos.isEmpty();
+//    }
 
     private static void drawAttackLine(Cowboy yoursTruly, RobotInfo weakling) {
         yoursTruly.me.setIndicatorLine(yoursTruly.me.getLocation() , weakling.getLocation() , 255,0,0);
     }
 
-    private static Optional<RobotInfo> findTheWeakOne(Cowboy yoursTruly) {
+    private static RobotInfo findTheWeakOne(Cowboy yoursTruly) {
         RobotController me = yoursTruly.me;
         int minHp = Integer.MAX_VALUE;
         RobotInfo closest = null;
@@ -158,6 +161,6 @@ public strictfp class RaiseHell implements BrightIdea{
             }
         }
 
-        return ofNullable(closest);
+        return closest;
     }
 }

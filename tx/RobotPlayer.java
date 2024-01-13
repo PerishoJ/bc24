@@ -86,6 +86,7 @@ public strictfp class RobotPlayer {
                 e.printStackTrace();
 
             } finally {
+                me.setIndicatorString("Count = " + turnCount);
                 Clock.yield();
             }
         }

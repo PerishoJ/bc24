@@ -15,14 +15,10 @@ public class MeanderAround implements BrightIdea {
 
     @Override
     public int howAboutThat(BigPicture bigPicture, RobotController rc) {
-        if(isThereABaddie(bigPicture, rc))
+        if( !bigPicture.muchachos.isEmpty() )
             return -1;
         else
             return 1;
-    }
-
-    private static boolean isThereABaddie(BigPicture bigPicture, RobotController rc) {
-        return bigPicture.muchachos.length>0;
     }
 
     @Override
