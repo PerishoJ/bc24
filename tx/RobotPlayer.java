@@ -53,6 +53,7 @@ public strictfp class RobotPlayer {
         rng = new Random(me.getID());
         me.setIndicatorString("Yeehaw!");
         System.out.println("Yeehaw!");
+        yoursTruly.wakeup();
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
@@ -164,4 +165,5 @@ public strictfp class RobotPlayer {
             }
         }
     }
+
 }

@@ -1,5 +1,6 @@
 package tx.thinkin;
 
+import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
@@ -11,6 +12,7 @@ import battlecode.common.RobotInfo;
  */
 public strictfp class BigPicture {
 
+    public MapInfo[][] map;
     /** bad guys*/
     public RobotInfo[] muchachos ;
 
@@ -26,6 +28,4 @@ public strictfp class BigPicture {
     public MapLocation lastLocation;
 
     public RobotInfo friendInNeed = null;
-
-    public static Plot[][] map;
 }
