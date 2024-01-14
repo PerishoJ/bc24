@@ -1,33 +1,28 @@
-package tx.thinkin;
+package tx.thinkin.comms;
 
 import battlecode.common.GameConstants;
 import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.Team;
 import junit.framework.TestCase;
-import tx.comms.SerialUtil;
+import tx.comms.CommsUtil;
+import tx.comms.TurnCount;
 
 import java.util.Random;
 
-public class UtilTest extends TestCase {
+public class CommsUtilTest extends TestCase {
 
-    public static final int MAP_SIZE_DIM_MAX = 61;
     public static Random rnd = new Random();
 
-    boolean isAuth = false;
+    private final MockSharedArray sharedArray = new MockSharedArray();
 
-    // used to track values for time when initializing.
-    // Handles the scenario when someone init's on a wallclock that hasn't been updated so that they don't move the clock bad if
-    // they ever are the first to see the time.
-    int initTimeTable[][] ;
+    private final TurnCount turnCount = new TurnCount();
 
-    // How many turns this bot has been up
-    int turnCount = 0;
 
     int gameTime = 0;
 
     public void testTypeSerialization(){
-        SerialUtil uut = new SerialUtil(40); // some rnd value
+        CommsUtil uut = new CommsUtil(40,sharedArray,turnCount); // some rnd value
         MapLocation loc = new MapLocation(37,43); //rnd
         Team homeTeam = Team.A;
         for(int i = 0 ; i<8 ; i ++){
@@ -39,13 +34,13 @@ public class UtilTest extends TestCase {
     }
 
 
-    public void testLocSerialization() throws SerialUtil.ForgotToInitMapSize {
+    public void testLocSerialization() throws CommsUtil.ForgotToInitMapSize {
         for(int i = 0 ; i< 100 ; i++){
             int rngx = GameConstants.MAP_MAX_WIDTH - GameConstants.MAP_MIN_WIDTH;
             int rngy = GameConstants.MAP_MAX_HEIGHT - GameConstants.MAP_MIN_HEIGHT;
             int boundx = GameConstants.MAP_MIN_WIDTH + rnd.nextInt(rngx);
             int boundy = GameConstants.MAP_MIN_HEIGHT + rnd.nextInt(rngy);
-            SerialUtil uut = new SerialUtil(boundy);
+            CommsUtil uut = new CommsUtil(boundy,sharedArray,turnCount);
             MapLocation loc = new MapLocation(rnd.nextInt(boundx),rnd.nextInt(boundy));
             int ser = uut.serializeMapLocation(loc);
             MapLocation deserLoc = uut.deserializeMapLoc(ser);
@@ -57,7 +52,7 @@ public class UtilTest extends TestCase {
     
 
 
-    public void testMapInfoSerialization() throws SerialUtil.ForgotToInitMapSize {
+    public void testMapInfoSerialization() throws CommsUtil.ForgotToInitMapSize {
         Team homeTeam = Team.A;
         for(int i = 0 ; i<8 ; i ++){
             for(int j = 0 ; j< 100 ; j++){
@@ -68,7 +63,7 @@ public class UtilTest extends TestCase {
 
                 int boundx = GameConstants.MAP_MIN_WIDTH + rnd.nextInt(rngx);
                 int boundy = GameConstants.MAP_MIN_HEIGHT + rnd.nextInt(rngy);
-                SerialUtil uut = new SerialUtil(boundy);
+                CommsUtil uut = new CommsUtil(boundy,sharedArray,turnCount);
                 MapLocation loc = new MapLocation(rnd.nextInt(boundx),rnd.nextInt(boundy));
 
                 MapInfo info = uut.deserializeType(loc, (int)i, homeTeam);
@@ -88,8 +83,8 @@ public class UtilTest extends TestCase {
 
 
     // The equivalent of null on the shared array.
-    public void testNullMessage() throws SerialUtil.ForgotToInitMapSize {
-        SerialUtil uut  = new SerialUtil( GameConstants.MAP_MAX_HEIGHT);
+    public void testNullMessage() throws CommsUtil.ForgotToInitMapSize {
+        CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
         int serInfo = 0b1111_1111_1111_1111;
         MapInfo deser = uut.deserializeMapInfo(serInfo,Team.A);
         System.out.println(deser);

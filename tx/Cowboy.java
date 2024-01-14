@@ -1,13 +1,13 @@
 package tx;
 
+import tx.comms.TurnCount;
 import tx.thinkin.BigPicture;
 import tx.thinkin.Noggin;
-import tx.comms.SerialUtil;
+import tx.comms.CommsUtil;
 import tx.thinkin.idears.BrightIdea;
 import battlecode.common.*;
 import tx.map.UnknownMapInfo;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 
 import static java.lang.StrictMath.ceil;
@@ -25,18 +25,20 @@ public strictfp class Cowboy {
     /**Big sky and broad plains.*/
     public BigPicture layOfTheLand=  new BigPicture();
 
-    private SerialUtil serialUtil;
+    public final TurnCount turnCount;
+    private CommsUtil serialUtil;
     public static final int APPETITE_FOR_PUNISHMENT = 450 ; // about 3 hits
 
-    public Cowboy(RobotController me){
+    public Cowboy(RobotController me, TurnCount turnCount){
         this.me = me;
+        this.turnCount = turnCount;
     }
 
 
     public void wakeup(){
         layOfTheLand.map = new MapInfo[me.getMapWidth()][me.getMapHeight()];
         pencilOutTheMap();
-        serialUtil = new SerialUtil( me.getMapHeight() );
+        serialUtil = new CommsUtil( me.getMapHeight() , me,turnCount);
 
         findChunkSize(me.getMapWidth(),me.getMapHeight(),GameConstants.SHARED_ARRAY_LENGTH / 2);
 
@@ -85,34 +87,15 @@ public strictfp class Cowboy {
             layOfTheLand.compadres = new LinkedList<>();
             layOfTheLand.muchachos = new LinkedList<>();
 
-            for (RobotInfo bot : folksRoundHere){
-                if(bot.getTeam() == me.getTeam()){
+            for (RobotInfo bot : folksRoundHere) {
+                if (bot.getTeam() == me.getTeam()) {
                     layOfTheLand.compadres.add(bot);
                 } else {
                     layOfTheLand.muchachos.add(bot);
                 }
             }
 
-            if(RobotPlayer.turnCount < GameConstants.SETUP_ROUNDS){
-                //read the whole darn Shared Array.
-                for(int i = 0 ; i < GameConstants.SHARED_ARRAY_LENGTH ; i ++){
-                    if(RobotPlayer.turnCount == 1){
-                        me.writeSharedArray(0, INVALID_MAP_MESSAGE); // This will make the top corner a trap...or something.
-                    } else {
-                        int serMapInfo = me.readSharedArray(i);
-                        if(serMapInfo != INVALID_MAP_MESSAGE){
-                            MapInfo info = serialUtil.deserializeMapInfo(serMapInfo,me.getTeam());
-                            MapLocation loc = info.getMapLocation();
-                            if(isLocationInMap(loc)) {
-                                //update local map.
-                                layOfTheLand.map[loc.x][loc.y] = info;
-                            } else {
-                                System.err.println("Something went wrong reading from array. Found value a loc " + loc);
-                            }
-                        }
-                    }
-                }
-            }
+            //TODO setup the comms logic for sharing map data for the first 200 turns.
 
         } catch (GameActionException e){
             System.out.println("Trouble Lookin' Around");
@@ -121,8 +104,6 @@ public strictfp class Cowboy {
             //layOfTheLand = new BigPicture();
             layOfTheLand.muchachos = new LinkedList<>();
             layOfTheLand.compadres = new LinkedList<>();
-        } catch (SerialUtil.ForgotToInitMapSize e) {
-            throw new RuntimeException(e);
         }
 
         return thinker.ponder(layOfTheLand, me);

@@ -1,5 +1,6 @@
 package tx;
 
+import tx.comms.TurnCount;
 import tx.thinkin.idears.BrightIdea;
 import battlecode.common.*;
 
@@ -17,7 +18,7 @@ public strictfp class RobotPlayer {
      * You can use static variables like this to save any information you want. Keep in mind that even though
      * these variables are static, in Battlecode they aren't actually shared between your robots.
      */
-    static int turnCount = 0;
+    public static TurnCount turnCount = new TurnCount();
 
     /**
      * A random number generator.
@@ -49,8 +50,9 @@ public strictfp class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController me) throws GameActionException {
 
-        Cowboy yoursTruly = new Cowboy(me);
+        Cowboy yoursTruly = new Cowboy(me, turnCount);
         rng = new Random(me.getID());
+
         me.setIndicatorString("Yeehaw!");
         System.out.println("Yeehaw!");
         yoursTruly.wakeup();
@@ -59,7 +61,7 @@ public strictfp class RobotPlayer {
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
 
-            turnCount += 1;  // We have now been alive for one more turn!
+            turnCount.inc();  // We have now been alive for one more turn!
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {

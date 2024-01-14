@@ -9,7 +9,7 @@ import java.util.List;
 public class Noggin {
 
 
-    private List<BrightIdea> ideas = new LinkedList<>();
+    private final List<BrightIdea> ideas = new LinkedList<>();
 
     public Noggin(){
         ideas.add(new GetOnGet());
