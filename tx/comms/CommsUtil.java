@@ -258,11 +258,11 @@ public class CommsUtil {
         //###############################################
         //########### Factory Methods
         //###############################################
-        public static LastModified createBinary(int count){
+        static LastModified createBinary(int count){
             return new LastModified(count,false);
         }
 
-        public static LastModified readBinary(int rawBits){
+        static LastModified readBinary(int rawBits){
             return new LastModified(rawBits,true);
         }
 
@@ -294,26 +294,6 @@ public class CommsUtil {
         return lastModified != null && lastModified.isCurrent(count.get());
     }
 
-    /**
-     * returns the last readable block for whichever partition of messages is in READ mode.
-     * PRE-200 QUEUE
-         * Evens Turns
-         *  2-32
-         * Odd Turns
-         *  32-64
-     * POST-200 QUEUE *TBD
-         * EVEN
-         *  2-16
-         * Odd
-         *  17-31
-     */
-    public int getReadIndex(int index){
-        if(isEvenTurn()){
-            return readEvenBlock(index);
-        } else {
-            return readOddBlock(index);
-        }
-    }
 
     /**
      * returns the last readable block for whichever partition of messages is in WRITE mode.
@@ -328,7 +308,7 @@ public class CommsUtil {
      * Odd
      *  2-16
      */
-    public int getWriteIndex(int index){
+    int getWriteIndex(int index){
         if(!isEvenTurn()){ // The blocks are reversed
             return readEvenBlock(index);
         } else {
@@ -368,7 +348,6 @@ public class CommsUtil {
     private boolean isEvenTurn() {
         return turnCount.get() % 2 == 0;
     }
-
 
 
 }
