@@ -1,17 +1,13 @@
-package tx.thinkin.comms;
+package tx.comms;
 
-import battlecode.common.GameConstants;
-import battlecode.common.MapInfo;
-import battlecode.common.MapLocation;
-import battlecode.common.Team;
+import battlecode.common.*;
 import junit.framework.TestCase;
-import tx.comms.CommsUtil;
-import tx.comms.TurnCount;
 
 import java.util.Random;
 
 public class CommsUtilTest extends TestCase {
 
+    public static final int MAX_DATA_INT_SIZE_PLUS_1 = (1 << 16);
     public static Random rnd = new Random();
 
     private final MockSharedArray sharedArray = new MockSharedArray();
@@ -89,6 +85,76 @@ public class CommsUtilTest extends TestCase {
         MapInfo deser = uut.deserializeMapInfo(serInfo,Team.A);
         System.out.println(deser);
         assert deser.getMapLocation().x > GameConstants.MAP_MAX_WIDTH;
+    }
+
+
+    public void testInitForWholeGame() throws GameActionException {
+        //GIVEN
+        CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
+        //WHEN
+        uut.preTurnWarmup();
+        //THEN
+        int initLastModifiedValue = CommsUtil.LastModified.createBinary(turnCount.get()).rawBits;
+        assertEquals(initLastModifiedValue , sharedArray.readSharedArray(0));
+        assertEquals(0 , sharedArray.readSharedArray(1));
+    }
+
+    public void testTestReadWriteCycleFirstTurn() throws GameActionException {
+        //GIVEN
+        // some unit inits game
+        CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
+        uut.preTurnWarmup();
+        int[] inputData = new int[]{5,6,7};
+        for(int i = 0 ; i<inputData.length ; i++) {
+            uut.writeToArrayBuffer(inputData[i]=rnd.nextInt(MAX_DATA_INT_SIZE_PLUS_1));
+        }
+        // Write to evens
+        uut.flushArrayBuffer();
+
+        // We read from odds
+        turnCount.inc();
+        uut.preTurnWarmup();
+        int[] data = uut.readAll();
+
+        assertEquals(inputData.length,data.length);
+        for(int i = 0 ; i<inputData.length ; i++) {
+            assertEquals(inputData[i], data[i]);
+        }
+    }
+
+
+    public void testTestReadWriteCycleSecondTurn() throws GameActionException {
+        //GIVEN
+        // some unit inits game
+        CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
+        uut.preTurnWarmup();
+        int[] inputData = new int[3];
+        writeSomeData(inputData, uut);
+        // Write to evens
+        uut.flushArrayBuffer();
+
+        // Write to some odds
+        turnCount.inc();
+        uut.preTurnWarmup();
+        uut.flushArrayBuffer();
+        // This will overwrite inputData with fresh values and write them
+        writeSomeData(inputData, uut);
+
+        turnCount.inc();
+        uut.preTurnWarmup();
+        int[] data = uut.readAll();
+
+        assertEquals(inputData.length,data.length);
+        for(int i = 0 ; i<inputData.length ; i++) {
+            assertEquals(inputData[i], data[i]);
+        }
+    }
+
+    private static void writeSomeData(int[] inputData, CommsUtil uut) throws GameActionException {
+        for(int i = 0; i< inputData.length ; i++) {
+            inputData[i]=rnd.nextInt(MAX_DATA_INT_SIZE_PLUS_1);
+            uut.writeToArrayBuffer(inputData[i]);
+        }
     }
 
 }

@@ -1,4 +1,4 @@
-package tx.thinkin.comms;
+package tx.comms;
 
 import battlecode.common.GameActionException;
 import battlecode.common.GameActionExceptionType;
@@ -29,7 +29,7 @@ public class MockSharedArray implements SharedArrayWrapper {
     }
 
     private static boolean isInBounds(int index) {
-        return index < SIZE && index > 0;
+        return index < SIZE && index >= 0;
     }
 
     @Override

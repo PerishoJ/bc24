@@ -2,9 +2,6 @@ package tx.comms;
 
 import battlecode.common.*;
 
-import java.util.LinkedList;
-import java.util.List;
-
 public class CommsUtil {
 
     /** This is hardcoded!! YAY! :D */
@@ -13,10 +10,12 @@ public class CommsUtil {
     /**essentially a 5 bit mask...uses {@link #BITS_TO_REPRESENT_MAX_TURN_VALUE} to account for when teh devs change things, we can change quickly*/
     public static final int HASH_MASK = (1 << (16 - BITS_TO_REPRESENT_MAX_TURN_VALUE)) - 1; 
     public static final int TURN_COUNT_BIT_MASK = 1<<BITS_TO_REPRESENT_MAX_TURN_VALUE -1;
-    public static final int NUMBER_OF_EVEN_BLOCKS = 30;
-    public static final int NUMBER_OF_ODD_BLOCKS = 29;
     public static final int TURN_COUNT_OFFSET = 1;
-    public static final int INDEX_OFFSET = 5;
+    public static final int LAST_MODIFIED_ADDR = 0;
+    public static final int INDEX_ADDR = 1;
+    public static final int PRE_200_PARTITION_SIZE = 31;
+    public static final int INDEX_HEADER = 2;
+    public static final int INDEX_PARTITION_BITS = 8;
     private final int mapHeight;
 
     private final SharedArrayWrapper sharedArray;
@@ -128,23 +127,108 @@ public class CommsUtil {
         }
     }
 
-    public void setupIndex(){
 
-        // the first block of memory is an index...because we aren't stupid and that's what we use.
-        // doing the evens/odds memory split.  Read/write to half the buffer on each turn.
-        // First block is LAST_MODIFIED tells the last turn that the memory was updated, and gives a hash of that.
 
-            // IF LAST_MODIFIED was the last turn
-                    // -> Update LAST_MODIFIED and HASH
-                    // -> Clear index of the active Buffer half
-            // IF LAST_MODIFIED hash isn't right
-                    // congratulations, you're the first person to update this thing... Do the same thing as above.
-    }
-
-    
     //###############################################################################################
     //############# Communications Code
     //###############################################################################################
+    /** We track this because WRITE operations are expensive, and it would be best to write this ONCE at the end*/
+    int index ;
+    
+    int writeCount = 0 ;
+    int[] arrayBuffer = new int[16];
+
+
+    /**
+     * We use a buffer because we only want to update the index a single time at the end of the turn.
+     * @param value
+     * @throws GameActionException
+     */
+    public void writeToArrayBuffer(int value) throws GameActionException {
+        if(writeCount < PRE_200_PARTITION_SIZE) {
+            arrayBuffer[writeCount] = value;
+            writeCount++;
+        } else {
+            throw new GameActionException(GameActionExceptionType.OUT_OF_RANGE, "Cannot write more than " + PRE_200_PARTITION_SIZE +" per turn.");
+        }
+    }
+
+    public void flushArrayBuffer() throws GameActionException {
+        for (int i = 0 ; i<writeCount ; i++){
+            if(isEvenTurn()){ // Write to first partition on Even turns (read from 2nd partition)
+                sharedArray.writeSharedArray(i+ INDEX_HEADER, arrayBuffer[i]);
+            } else { // Write to 2nd partition on Odd turns (read from first partition)
+                sharedArray.writeSharedArray(i+ INDEX_HEADER + PRE_200_PARTITION_SIZE, arrayBuffer[i]);
+            }
+        }
+        sharedArray.writeSharedArray(INDEX_ADDR , updateIndex(index,writeCount));
+    }
+
+    public int[] readAll() throws GameActionException {
+        int count = isEvenTurn()? readOddBlock(index) : readEvenBlock(index)  ;
+        int[] data = new int[count];
+        for(int i =0 ; i<count ; i ++){
+            if(isEvenTurn()){
+                data[i] = sharedArray.readSharedArray(i+PRE_200_PARTITION_SIZE+INDEX_HEADER);
+            } else {
+                data[i] = sharedArray.readSharedArray(i+INDEX_HEADER);
+            }
+        }
+        return data;
+    }
+
+    public void preTurnWarmup(){
+        // the first 2 blocks of memory is an index.
+        getLastModified(turnCount);
+        // IF LAST_MODIFIED hash isn't right
+        // congratulations, you're the first person to update this thing... Do the same thing as above.
+        if( isSharedArrayUnconfigured() ){
+            configureSharedArray();
+        }
+        // You are the first person to see the shared array this turn...So clear the write index.
+        else if( !lastModified.isCurrent(turnCount.get())){
+            lastModified = LastModified.createBinary( turnCount.get() );
+            try {
+                // Setup Turn Count
+                sharedArray.writeSharedArray(LAST_MODIFIED_ADDR, lastModified.rawBits);
+                index = sharedArray.readSharedArray(INDEX_ADDR);
+                // zero out the WRITE index.
+                if(isEvenTurn()){
+                    index = clearEvenBlock( index );
+                } else {
+                    index = clearOddBlock( index );
+                }
+                sharedArray.writeSharedArray(INDEX_ADDR, index);
+            } catch (GameActionException e) {
+                System.err.println(e); // Not really sure what to do if this fails, because I'm not sure how it would
+            }
+        } else { // The index is good! Just read it.
+            try {
+                index = sharedArray.readSharedArray(INDEX_ADDR);
+                writeCount = getWriteIndex(INDEX_PARTITION_BITS);
+            } catch (GameActionException e) {
+                System.err.println(e); // again...no idea what to do here.
+            }
+        }
+    }
+
+    private void configureSharedArray() {
+        lastModified = LastModified.createBinary( turnCount.get() );
+        writeCount = 0;
+        index = 0;
+        try {
+            // Setup Turn Count
+            sharedArray.writeSharedArray(0, lastModified.rawBits);
+            // zero out BOTH indexes
+            sharedArray.writeSharedArray(1, 0);
+        } catch (GameActionException e) {
+            System.err.println(e); // Not really sure what to do if this fails, because I'm not sure how it would
+        }
+    }
+
+    private boolean isSharedArrayUnconfigured() {
+        return !lastModified.isValid();
+    }
 
     static class LastModified{
         final int hash;
@@ -153,8 +237,8 @@ public class CommsUtil {
         final int rawBits;
         final boolean isValid;
 
-        private LastModified(int bitsOrTurn , boolean isReading) {
-            if(isReading) {
+        private LastModified(int bitsOrTurn , boolean isReadingBinaryBits) {
+            if(isReadingBinaryBits) {
                 rawBits = bitsOrTurn;
                 // this first bits are the turn
                 last_mod_turn_count = bitsOrTurn & TURN_COUNT_BIT_MASK;
@@ -210,98 +294,81 @@ public class CommsUtil {
         return lastModified != null && lastModified.isCurrent(count.get());
     }
 
-    public int[] getIndexBlock(){
-        int[] indices = new int[4];
-        try {
-            for(int i = 0; i < 4 ; i++){
-                indices[i] = sharedArray.readSharedArray(i + TURN_COUNT_OFFSET);
-            }
-        } catch (GameActionException e) {
-            System.err.println(e); // I really don't know what to do with this one
+    /**
+     * returns the last readable block for whichever partition of messages is in READ mode.
+     * PRE-200 QUEUE
+         * Evens Turns
+         *  2-32
+         * Odd Turns
+         *  32-64
+     * POST-200 QUEUE *TBD
+         * EVEN
+         *  2-16
+         * Odd
+         *  17-31
+     */
+    public int getReadIndex(int index){
+        if(isEvenTurn()){
+            return readEvenBlock(index);
+        } else {
+            return readOddBlock(index);
         }
-        return indices;
     }
 
     /**
-     * Use a split queue system
-     * first byte for turn count and hash
-     * next 4 bytes for index
-     * next 59 blocks are split
-     * Half the array on even turns (30)
-     * Half the array on odd turns (29)
-     * 
-     * @return
+     * returns the last readable block for whichever partition of messages is in WRITE mode.
+     * PRE-200 QUEUE
+     * Evens Turns
+     *  32-64
+     * Odd Turns
+     *  2-32
+     * POST-200 QUEUE *TBD
+     * EVEN
+     *  17-31
+     * Odd
+     *  2-16
      */
-    public List getReadable(int[] indices){
-        // bytes 1,2 for blocks (64-5(index blocks)) = 30 respectively
-        // Check for values at index by bit-shifting until the index is all zeroes
-        // Values come in order
-        // So
-        // 0b0000_0000_0000_0011 (1)
-        // >>
-        // 0b0000_0000_0000_001 (2)
-        // >>
-        // 0b0000_0000_0000_00 (X)
-        // So the first 2 blocks have values.
-        List<Integer> validBlocks = new LinkedList<>();
-        if(isEvenTurn()){
-            // use blocks 1 and 2 for index
-            for(int i = 0; i< NUMBER_OF_EVEN_BLOCKS; i++){
-                boolean hasData = checkEvenIndexForData(i, indices);
-                if(!hasData){
-                    break;
-                } else {
-                    validBlocks.add(i+ INDEX_OFFSET);
-                }
-            }
+    public int getWriteIndex(int index){
+        if(!isEvenTurn()){ // The blocks are reversed
+            return readEvenBlock(index);
         } else {
-            // use blocks 3 and 4 for index
-            for(int i = 0; i< NUMBER_OF_ODD_BLOCKS; i++){
-                boolean hasData = checkOddIndexForData(i, indices);
-                if(!hasData){
-                    break;
-                } else {
-                    validBlocks.add(i+ INDEX_OFFSET + NUMBER_OF_EVEN_BLOCKS);
-                }
-            }
+            return readOddBlock(index);
         }
-        return validBlocks;
     }
 
-    /** Use blocks 3 & 4 as index for EVENS memory blocks*/
-    private boolean checkEvenIndexForData(int i, int[] indices) {
-        boolean hasData;
-        if(i <16){
-            hasData = indices[0] > 0;
-            indices[0] = indices[0]>>1;
-
-        } else {
-            hasData = indices[1] > 0;
-            indices[0] = indices[0]>>1;
-        }
-        return hasData;
+    int readEvenBlock(int index){
+        return index & 0b0000_0000_1111_1111; //First 8 bits
+    }
+    int readOddBlock(int index){
+        return (index >> INDEX_PARTITION_BITS) & 0b0000_0000_1111_1111; //Read last 8 bits
     }
 
-    /** Use blocks 3 & 4 as index for ODDS memory blocks*/
-    private boolean checkOddIndexForData(int i, int[] indices) {
-        boolean hasData;
-        if(i <16){
-            hasData = indices[2] > 0;
-            indices[0] = indices[0]>>1;
+    int clearEvenBlock(int index){
+        return index & 0b1111_1111_0000_0000; //clear first 8 bits
+    }
+    int clearOddBlock(int index){
+        return (index) & 0b0000_0000_1111_1111; //clear last 8 bits
+    }
 
-        } else {
-            hasData = indices[3] > 0;
-            indices[0] = indices[0]>>1;
-        }
-        return hasData;
+    int updateIndex(int fullIndex , int update){
+        return isEvenTurn() ? updateEvenIndex(fullIndex,update)
+                :updateOddIndex(fullIndex,update);
+    }
+
+    int updateEvenIndex(int fullIndex , int update){
+        int cleared = clearEvenBlock(fullIndex);
+        return cleared | update;
+    }
+
+    int updateOddIndex(int fullIndex , int update){
+        int cleared = clearOddBlock(fullIndex);
+        return (cleared | (update<<INDEX_PARTITION_BITS));
     }
 
     private boolean isEvenTurn() {
-        return turnCount.get() % 2 == 1;
+        return turnCount.get() % 2 == 0;
     }
 
-    public int[] getWriteable(int[] indices){
-        return new int[]{};
-    }
+
 
 }
