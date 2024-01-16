@@ -15,4 +15,6 @@
 ## Why?
 Because you need to keep the scaffold GIT repo in-tact so that we can pull battlecode client updates with Gradle.
 We also need to version control our own code.
-This is how
+
+
+Both repos need to remain in tact, but separated.
