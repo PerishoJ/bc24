@@ -13,18 +13,15 @@
 
 
 ## Why?
-Because you need to keep the scaffold GIT repo in-tact so that we can pull battlecode client updates with Gradle.
-We also need to version control our own code.
-
+- Because the scaffold needs to pull battlecode updates for the client
+- We need to version control our code 
 
 Both repos need to remain in tact, but separated.
 
-Also, the IDE won't be able to commit Project changes to git.  You should only be GIT pulling from the scaffold.
+### Key Details
+Commands from the IDE: Anything Battlecode related. Build and Run. __NO CODE COMMITS__
+- ./gradlew build
+- ./gradlew update 
+- ./gradlew zipForSubmission
 
-To commit changes, you need to navigate to the directory where you GIT cloned this repo and run GIT commands normally from there.
-
-- git pull
-- git add -A
-- git commit -m "Some message"
-- git push
-- 
+__To commit changes, you to your git run commands from THIS repo__
