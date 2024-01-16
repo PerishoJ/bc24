@@ -4,8 +4,8 @@
 
 	Make sure the links are named 'tx', or the packaging will be messed up.
 
-(scaffold)/src/"tx" -> (repo)/tx
-(scaffold)/test/"tx" -> (repo)/test/tx
+- (scaffold)/src/"tx" -> (repo)/tx
+- (scaffold)/test/"tx" -> (repo)/test/tx
 
 
 
