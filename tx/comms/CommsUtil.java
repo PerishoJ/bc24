@@ -2,6 +2,10 @@ package tx.comms;
 
 import battlecode.common.*;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+
 public class CommsUtil {
 
     /** This is hardcoded!! YAY! :D */
@@ -9,7 +13,7 @@ public class CommsUtil {
 
     /**essentially a 5 bit mask...uses {@link #BITS_TO_REPRESENT_MAX_TURN_VALUE} to account for when teh devs change things, we can change quickly*/
     public static final int HASH_MASK = (1 << (16 - BITS_TO_REPRESENT_MAX_TURN_VALUE)) - 1; 
-    public static final int TURN_COUNT_BIT_MASK = 1<<BITS_TO_REPRESENT_MAX_TURN_VALUE -1;
+    public static final int TURN_COUNT_BIT_MASK = (1<<BITS_TO_REPRESENT_MAX_TURN_VALUE) -1;
     public static final int TURN_COUNT_OFFSET = 1;
     public static final int LAST_MODIFIED_ADDR = 0;
     public static final int INDEX_ADDR = 1;
@@ -22,18 +26,33 @@ public class CommsUtil {
 
     private final TurnCount turnCount;
 
-    
-    public CommsUtil(int mapHeight, SharedArrayWrapper sharedArray, TurnCount turnCount){
+    private final Team homeTeam;
+
+    public CommsUtil(int mapHeight, SharedArrayWrapper sharedArray, TurnCount turnCount, Team hometeam){
         this.mapHeight = mapHeight;
         this.sharedArray =sharedArray;
         this.turnCount = turnCount;
+        this.homeTeam = hometeam;
+    }
+
+    /**
+     * FOR TESTING ONLY, because I added the Hometeam variable later, and was too lazy to add it in everywhere.
+     * @param mapHeight
+     * @param sharedArray
+     * @param turnCount
+     */
+    CommsUtil(int mapHeight, SharedArrayWrapper sharedArray, TurnCount turnCount){
+        this.mapHeight = mapHeight;
+        this.sharedArray =sharedArray;
+        this.turnCount = turnCount;
+        this.homeTeam = Team.A; // Because we ARE team A. Duh!
     }
 
     public CommsUtil(int mapHeight , RobotController rc , TurnCount turnCount){
         this.mapHeight = mapHeight;
         sharedArray = new RobotSharedArray(rc);
         this.turnCount = turnCount;
-
+        this.homeTeam = rc.getTeam();
     }
 
     //###############################################################################################
@@ -135,9 +154,12 @@ public class CommsUtil {
     /** We track this because WRITE operations are expensive, and it would be best to write this ONCE at the end*/
     int index ;
     
+    /**How many messages you need to write this turn*/
     int writeCount = 0 ;
+    /**How many messages were in the partition when you got there*/
+    int writeOffset = 0;
     int[] arrayBuffer = new int[16];
-
+    Queue<Integer> backLog  = new LinkedList<>();
 
     /**
      * We use a buffer because we only want to update the index a single time at the end of the turn.
@@ -149,20 +171,56 @@ public class CommsUtil {
             arrayBuffer[writeCount] = value;
             writeCount++;
         } else {
-            throw new GameActionException(GameActionExceptionType.OUT_OF_RANGE, "Cannot write more than " + PRE_200_PARTITION_SIZE +" per turn.");
+            backLog.offer(value);
         }
     }
 
     public void flushArrayBuffer() throws GameActionException {
+        // put some stuff on from the backlog.
+        while( !backLog.isEmpty() && writeCount < PRE_200_PARTITION_SIZE ){
+            writeToArrayBuffer( backLog.poll() );
+        }
         for (int i = 0 ; i<writeCount ; i++){
             if(isEvenTurn()){ // Write to first partition on Even turns (read from 2nd partition)
-                sharedArray.writeSharedArray(i+ INDEX_HEADER, arrayBuffer[i]);
+                sharedArray.writeSharedArray(i+ INDEX_HEADER + writeOffset, arrayBuffer[i]);
             } else { // Write to 2nd partition on Odd turns (read from first partition)
-                sharedArray.writeSharedArray(i+ INDEX_HEADER + PRE_200_PARTITION_SIZE, arrayBuffer[i]);
+                sharedArray.writeSharedArray(i+ INDEX_HEADER + writeOffset + PRE_200_PARTITION_SIZE, arrayBuffer[i]);
             }
         }
-        sharedArray.writeSharedArray(INDEX_ADDR , updateIndex(index,writeCount));
+        sharedArray.writeSharedArray(INDEX_ADDR , updateIndex(index,writeCount + writeOffset));
     }
+
+    /**
+     * Convenience function
+     * @param mapInfo
+     * @throws ForgotToInitMapSize
+     * @throws GameActionException
+     */
+    public void writeToArrayBuffer(MapInfo mapInfo) throws ForgotToInitMapSize, GameActionException {
+        int serMapInfo = serializeMapInfo(mapInfo,homeTeam);
+        writeToArrayBuffer(serMapInfo);
+    }
+
+    public boolean canWrite(){
+        return writeCount < arrayBuffer.length;
+    }
+
+    /**
+     * Let's be real, before turn 200, this is ALL we care about.
+     * So let's make a convenience function
+     * @return
+     * @throws GameActionException
+     * @throws ForgotToInitMapSize
+     */
+    public List<MapInfo> readAllAsMapInfo() throws GameActionException, ForgotToInitMapSize {
+        int [] raw = readAll();
+        List<MapInfo> mapInfos = new LinkedList<>();
+        for(int i = 0 ; i<raw.length ; i++){
+            mapInfos.add( deserializeMapInfo( raw[i] , homeTeam));
+        }
+        return mapInfos;
+    }
+
 
     public int[] readAll() throws GameActionException {
         int count = isEvenTurn()? readOddBlock(index) : readEvenBlock(index)  ;
@@ -184,6 +242,8 @@ public class CommsUtil {
         // congratulations, you're the first person to update this thing... Do the same thing as above.
         if( isSharedArrayUnconfigured() ){
             configureSharedArray();
+            writeCount = 0 ;
+            writeOffset = 0;
         }
         // You are the first person to see the shared array this turn...So clear the write index.
         else if( !lastModified.isCurrent(turnCount.get())){
@@ -202,10 +262,13 @@ public class CommsUtil {
             } catch (GameActionException e) {
                 System.err.println(e); // Not really sure what to do if this fails, because I'm not sure how it would
             }
+            writeOffset = getWriteIndex(index);
+            writeCount = 0;
         } else { // The index is good! Just read it.
             try {
                 index = sharedArray.readSharedArray(INDEX_ADDR);
-                writeCount = getWriteIndex(INDEX_PARTITION_BITS);
+                writeOffset = getWriteIndex(index);
+                writeCount = 0;
             } catch (GameActionException e) {
                 System.err.println(e); // again...no idea what to do here.
             }
@@ -243,7 +306,7 @@ public class CommsUtil {
                 // this first bits are the turn
                 last_mod_turn_count = bitsOrTurn & TURN_COUNT_BIT_MASK;
                 // the next bits are the hash. Make sure we're not reading garbage
-                hash = (bitsOrTurn >> BITS_TO_REPRESENT_MAX_TURN_VALUE) & HASH_MASK;
+                hash = (bitsOrTurn >> BITS_TO_REPRESENT_MAX_TURN_VALUE);
                 isValid = last_mod_turn_count.hashCode() == hash;
             } else {
                 last_mod_turn_count = bitsOrTurn;
@@ -251,7 +314,7 @@ public class CommsUtil {
                 if (bitsOrTurn > GameConstants.GAME_MAX_NUMBER_OF_ROUNDS){
                     bitsOrTurn = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS;
                 }
-                rawBits = (bitsOrTurn << BITS_TO_REPRESENT_MAX_TURN_VALUE) | (bitsOrTurn & TURN_COUNT_BIT_MASK);
+                rawBits = (hash << BITS_TO_REPRESENT_MAX_TURN_VALUE) | (bitsOrTurn & TURN_COUNT_BIT_MASK);
                 isValid = true; // Of course it's valid. You wrote it and you are always right.
             }
         }
@@ -309,7 +372,7 @@ public class CommsUtil {
      *  2-16
      */
     int getWriteIndex(int index){
-        if(!isEvenTurn()){ // The blocks are reversed
+        if(isEvenTurn()){ // The blocks are reversed
             return readEvenBlock(index);
         } else {
             return readOddBlock(index);
