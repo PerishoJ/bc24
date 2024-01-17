@@ -8,17 +8,29 @@ import java.util.List;
 
 public class Noggin {
 
+    public Noggin(BigPicture layOfTheLand, RobotController i) {
+        this();
+        this.layOfTheLand = layOfTheLand;
+        I = i;
+    }
+
+    BigPicture layOfTheLand;
+    RobotController I;
 
     private final List<BrightIdea> ideas = new LinkedList<>();
 
-    public Noggin(){
+    private Noggin(){
         ideas.add(new GetOnGet());
         ideas.add(new MeanderAround());
+        ideas.add(new RememberTheAlamo());
         ideas.add(new RaiseHell());
         ideas.add(new SweetTea());
+        ideas.add(new FlagThief());
+        ideas.add(new Trapper());
+        //ideas.add(new TestBugNav());
     }
 
-    public BrightIdea ponder (BigPicture layOfTheLand , RobotController I){
+    public BrightIdea ponder (BigPicture layOfTheLand){
         BrightIdea best = null;
         int bestScore = 0;
         // score each idea and find the good one
@@ -27,10 +39,14 @@ public class Noggin {
                 best = idea;
                 bestScore = idea.howAboutThat(layOfTheLand,I);
             } else {
-                int score = idea.howAboutThat(layOfTheLand,I);
-                if(score>bestScore){
-                    best = idea;
-                    bestScore = score;
+                try {
+                    int score = idea.howAboutThat(layOfTheLand, I);
+                    if (score > bestScore) {
+                        best = idea;
+                        bestScore = score;
+                    }
+                }catch(Exception e){
+
                 }
             }
         }

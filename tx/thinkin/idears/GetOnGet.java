@@ -1,25 +1,22 @@
 package tx.thinkin.idears;
 
+import battlecode.common.*;
 import tx.Cowboy;
+import tx.map.BugPathing;
 import tx.thinkin.BigPicture;
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-
-import static tx.thinkin.idears.RaiseHell.doIhaveMoreAmigosThanYou;
-
 /**
  * Get the F&$# Out of Dodge!
  */
 public class GetOnGet implements BrightIdea{
 
     Direction retreatDir;
+    BugPathing bug ;
+
     @Override
     public int howAboutThat(BigPicture bigPicture, RobotController rc) {
-        if( rc.getHealth() <= Cowboy.APPETITE_FOR_PUNISHMENT
-                || !doIhaveMoreAmigosThanYou(bigPicture) ){
-            return 10;
+        if(bug==null) bug = new BugPathing(bigPicture,rc);
+        if( rc.getHealth() <= Cowboy.APPETITE_FOR_PUNISHMENT && !bigPicture.muchachos.isEmpty() ){
+            return 4;
         } else {
             return 0;
         }
@@ -28,8 +25,30 @@ public class GetOnGet implements BrightIdea{
     @Override
     public void getErDone(Cowboy yoursTruly) throws GameActionException {
         RobotController I = yoursTruly.me;
+        RobotInfo closestFriend = yoursTruly.layOfTheLand.closestHealthyAlly;
+        retreatDir= null;
+        if(closestFriend!=null){
+            try {
+                retreatDir = bug.go(closestFriend.location);
+            } catch (Exception e) {
+                System.err.println("error pathing to closest friend during retreat" + e);
+            }
+        } else {
+            MapLocation closeSpawn = findClosestSpawn(I);
+            // there HAS to be spawn locations...or there would be no game. Assume not null.
+            try {
+                retreatDir = bug.go(closeSpawn);
+            } catch (Exception e) {
+                System.err.println("Error trying to nav to nearest spawn." + e.getMessage());
+            }
+        }
 
+        yoursTruly.move(retreatDir);
 
+        I.setIndicatorString("RETREAT!");
+    }
+
+    private static MapLocation findClosestSpawn(RobotController I) {
         int minSpawnDist = Integer.MAX_VALUE;
         MapLocation closeSpawn = null;
         int tempDist = Integer.MAX_VALUE;
@@ -45,19 +64,11 @@ public class GetOnGet implements BrightIdea{
                 }
             }
         }
-        // there HAS to be spawn locations...or there would be no game. Assume not null.
-        retreatDir = I.getLocation().directionTo(closeSpawn);
+        return closeSpawn;
+    }
 
-        if(I.canMove(retreatDir)){
-            I.move(retreatDir);
-        } else if (I.canMove(retreatDir.rotateLeft())){
-            I.move(retreatDir.rotateLeft());
-        } else if (I.canMove(retreatDir.rotateRight())) {
-            I.move(retreatDir.rotateRight());
-        }else if (I.canMove(retreatDir.rotateLeft().rotateLeft())){
-            I.move(retreatDir.rotateLeft().rotateLeft());
-        } else if (I.canMove(retreatDir.rotateRight().rotateRight())) {
-            I.move(retreatDir.rotateRight().rotateRight());
-        }
+    @Override
+    public String getName() {
+        return "Adios! *runs*";
     }
 }

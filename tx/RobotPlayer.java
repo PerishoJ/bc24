@@ -67,11 +67,17 @@ public strictfp class RobotPlayer {
             try {
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
+
+                //... JUST KIDDING! We can AND WILL read from the shared array.
+
+                yoursTruly.readNews();
+
                 if (!me.isSpawned()){
                     comeOnIn(me);
                 }
                 else{
                     BrightIdea resolution = yoursTruly.takeStock();
+                    me.setIndicatorString(resolution.getName());
                     resolution.getErDone( yoursTruly );
                     //snatchUpThemFlags(me);
                     // Move and attack randomly if no objective.
@@ -88,7 +94,6 @@ public strictfp class RobotPlayer {
                 e.printStackTrace();
 
             } finally {
-                me.setIndicatorString("Count = " + turnCount);
                 Clock.yield();
             }
         }

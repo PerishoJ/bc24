@@ -1,9 +1,9 @@
 package tx.thinkin;
 
-import battlecode.common.MapInfo;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-import battlecode.common.RobotInfo;
+import battlecode.common.*;
+import scala.Int;
+import tx.Cowboy;
+import tx.thinkin.idears.GetOnGet;
 
 import java.util.List;
 
@@ -14,7 +14,8 @@ import java.util.List;
  */
 public strictfp class BigPicture {
 
-    public MapInfo[][] map;
+    public final MapInfo[][] map;
+    public final int mapWidth,mapHeight;
     /** bad guys*/
     public List<RobotInfo> muchachos ;
 
@@ -29,5 +30,119 @@ public strictfp class BigPicture {
     public int trouble;
     public MapLocation lastLocation;
 
+    public MapLocation closestSpawn;
+    public int closestSpawnDist;
+
+    public MapLocation closestAllyFlag;
+    public int closestAllyFlagDist;
+
+    //############# START bot statistics ####################
+    public int closestAllyDist;
+    public RobotInfo closestAlly;
+
+    public RobotInfo closestHealthyAlly;
+    public int closestHealthyAllyDist;
+    public int closestDmgAllyDist;
+    public RobotInfo closestDamagedAlly;
+    public int closestEnemyDist;
+    public RobotInfo closestEnemy;
+    public int mostDamagedEnemyInRngHp;
+    public RobotInfo mostDamagedEnemyInRange;
+
+    public void clearRobotStatistics(){
+         closestAllyDist = Integer.MAX_VALUE;
+         closestAlly=null;
+         closestDmgAllyDist = Integer.MAX_VALUE;
+         closestDamagedAlly=null;
+         closestEnemyDist = Integer.MAX_VALUE;
+         closestEnemy=null;
+         mostDamagedEnemyInRngHp = GameConstants.DEFAULT_HEALTH;
+         mostDamagedEnemyInRange=null;
+    }
+
+    public void addEnemyStat(RobotInfo enemy, RobotController rc){
+        int dist = enemy.getLocation().distanceSquaredTo(rc.getLocation());
+        if(closestEnemy==null ){
+            closestEnemy = enemy;
+            closestEnemyDist = dist;
+        } else if ( dist < closestSpawnDist) {
+            closestEnemy = enemy;
+            closestEnemyDist = dist;
+        }
+        if(dist < GameConstants.ATTACK_RADIUS_SQUARED ){
+            if(mostDamagedEnemyInRange == null){
+                mostDamagedEnemyInRange = enemy;
+                mostDamagedEnemyInRngHp = enemy.getHealth();
+            } else if ( enemy.getHealth() < mostDamagedEnemyInRngHp ){
+                mostDamagedEnemyInRange = enemy;
+                mostDamagedEnemyInRngHp = enemy.getHealth();
+            }
+        }
+    }
+
+    public void addAllyStat(RobotInfo ally, RobotController rc){
+        int dist = ally.getLocation().distanceSquaredTo(rc.getLocation());
+        if(closestAlly==null ){
+            closestAlly = ally;
+            closestAllyDist = dist;
+        } else if ( dist < closestSpawnDist) {
+            closestAlly = ally;
+            closestAllyDist = dist;
+        }
+    }
+
+    /**
+     * must happen AFTER finding all allies and muchachos are found.
+     * Very useful in finding good retreat places.
+     * @param rc
+     */
+    public void findClosestSafeHealthyAlly(RobotController rc){
+        int dist = Integer.MAX_VALUE;
+        for(RobotInfo ally : compadres) {
+            if (ally.getHealth() > Cowboy.APPETITE_FOR_PUNISHMENT ) {
+                dist = ally.getLocation().distanceSquaredTo(rc.getLocation());
+                boolean isHealzSafe = true;
+                for(RobotInfo muchacho : muchachos){
+                    if(muchacho.getLocation().distanceSquaredTo(ally.getLocation())<GameConstants.ATTACK_RADIUS_SQUARED){
+                        isHealzSafe = false;
+                    }
+                }
+                if(isHealzSafe) {
+                    if (closestHealthyAlly == null) {
+                        closestHealthyAlly = ally;
+                        closestHealthyAllyDist = dist;
+                    } else if (dist < closestHealthyAllyDist) {
+                        closestHealthyAlly = ally;
+                        closestHealthyAllyDist = dist;
+                    }
+                }
+            }
+        }
+    }
+
+
+    //############# END bot statistics ####################
+    public MapLocation closestEnemyFlag;
+    public int closestEnemyFlagDist;
     public RobotInfo friendInNeed = null;
+
+    public BigPicture(int mapWidth, int mapHeight) {
+        this.mapWidth = mapWidth;
+        this.mapHeight = mapHeight;
+        map = new MapInfo[mapWidth][mapHeight];
+    }
+
+    public MapInfo getLocalInfo (MapLocation location) throws ArrayIndexOutOfBoundsException{
+        if(isOffMap(location)){
+            throw new ArrayIndexOutOfBoundsException("You're checkin' something off the map.");
+        }
+        return map[location.x][location.y];
+    }
+
+    public boolean isOffMap(MapLocation location) {
+        return location.x < 0 || location.y < 0 || location.x >= mapWidth || location.y >= mapHeight;
+    }
+
+
+
 }

@@ -9,6 +9,7 @@ import battlecode.common.*;
 import tx.map.UnknownMapInfo;
 
 import java.util.LinkedList;
+import java.util.List;
 
 import static java.lang.StrictMath.ceil;
 
@@ -21,13 +22,13 @@ public strictfp class Cowboy {
     /**I think, therefore I am*/
     public RobotController me;
     /**That's usin' your noodle!*/
-    public Noggin thinker = new Noggin();
+    public Noggin thinker;
     /**Big sky and broad plains.*/
-    public BigPicture layOfTheLand=  new BigPicture();
+    public BigPicture layOfTheLand;
 
     public final TurnCount turnCount;
-    private CommsUtil serialUtil;
-    public static final int APPETITE_FOR_PUNISHMENT = 450 ; // about 3 hits
+    private CommsUtil comms;
+    public static final int APPETITE_FOR_PUNISHMENT = 300 ; // about 3 hits
 
     public Cowboy(RobotController me, TurnCount turnCount){
         this.me = me;
@@ -36,10 +37,10 @@ public strictfp class Cowboy {
 
 
     public void wakeup(){
-        layOfTheLand.map = new MapInfo[me.getMapWidth()][me.getMapHeight()];
+        layOfTheLand = new BigPicture(me.getMapWidth(),me.getMapHeight());
         pencilOutTheMap();
-        serialUtil = new CommsUtil( me.getMapHeight() , me,turnCount);
-
+        comms = new CommsUtil( me.getMapHeight() , me,turnCount);
+        thinker = new Noggin(layOfTheLand,me);
         findChunkSize(me.getMapWidth(),me.getMapHeight(),GameConstants.SHARED_ARRAY_LENGTH / 2);
 
     }
@@ -80,42 +81,177 @@ public strictfp class Cowboy {
         return minLotWidth;
     }
 
+
+    public void move(Direction dir) throws GameActionException {
+        if(dir == null){
+            System.err.println("Tried to move in a null direction...didn't");
+            me.setIndicatorDot(me.getLocation(),255,0,0);
+            return;
+        }
+
+        if(me.canMove(dir)){
+            layOfTheLand.lastLocation = me.getLocation();
+            me.move(dir);
+        } /*else if (me.canMove(dir.rotateLeft())){
+            layOfTheLand.lastLocation = me.getLocation();
+            me.move(dir.rotateLeft());
+        } else if (me.canMove(dir.rotateRight())) {
+            layOfTheLand.lastLocation = me.getLocation();
+            me.move(dir.rotateRight());
+        }else if (me.canMove(dir.rotateLeft().rotateLeft())){
+            layOfTheLand.lastLocation = me.getLocation();
+            me.move(dir.rotateLeft().rotateLeft());
+        } else if (me.canMove(dir.rotateRight().rotateRight())) {
+            layOfTheLand.lastLocation = me.getLocation();
+            me.move(dir.rotateRight().rotateRight());
+        }*/
+    }
     public BrightIdea takeStock(){
         try {
             RobotInfo[] folksRoundHere = me.senseNearbyRobots(-1, null);
 
             layOfTheLand.compadres = new LinkedList<>();
             layOfTheLand.muchachos = new LinkedList<>();
+            layOfTheLand.clearRobotStatistics();
 
             for (RobotInfo bot : folksRoundHere) {
+
                 if (bot.getTeam() == me.getTeam()) {
+                    layOfTheLand.addAllyStat(bot,me);
                     layOfTheLand.compadres.add(bot);
                 } else {
+                    layOfTheLand.addEnemyStat(bot,me);
                     layOfTheLand.muchachos.add(bot);
                 }
             }
 
-            //TODO setup the comms logic for sharing map data for the first 200 turns.
+            findClosestSpawn();
+            findClosestAllyFlag();
+            findClosestEnemyFlag();
 
+            me.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED , me.getTeam());
+
+            scanAndUpdateMap();
         } catch (GameActionException e){
             System.out.println("Trouble Lookin' Around");
-            System.out.println(e);
+            System.out.println(e + "\n");
+            e.printStackTrace();
             // kinda useless, but it won't crash, I guess.
             //layOfTheLand = new BigPicture();
             layOfTheLand.muchachos = new LinkedList<>();
             layOfTheLand.compadres = new LinkedList<>();
         }
 
-        return thinker.ponder(layOfTheLand, me);
+        return thinker.ponder(layOfTheLand);
+    }
+
+    private void findClosestSpawn() {
+        layOfTheLand.closestSpawn = findClosest(me.getAllySpawnLocations(),me);
+        if(layOfTheLand.closestSpawn!=null)
+            layOfTheLand.closestSpawnDist = me.getLocation().distanceSquaredTo(layOfTheLand.closestSpawn);
+        else
+            layOfTheLand.closestSpawnDist = Integer.MAX_VALUE;
+    }
+
+    private void findClosestAllyFlag() throws GameActionException {
+
+        layOfTheLand.closestAllyFlag = findClosest(me.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED,me.getTeam()),me);
+        if(layOfTheLand.closestAllyFlag !=null)
+            layOfTheLand.closestAllyFlagDist = me.getLocation().distanceSquaredTo(layOfTheLand.closestAllyFlag);
+        else
+            layOfTheLand.closestAllyFlagDist = Integer.MAX_VALUE;
+    }
+
+    private void findClosestEnemyFlag() throws GameActionException {
+        layOfTheLand.closestEnemyFlag = findClosest(me.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED,me.getTeam().opponent()),me);
+        if(layOfTheLand.closestEnemyFlag !=null)
+            layOfTheLand.closestEnemyFlagDist = me.getLocation().distanceSquaredTo(layOfTheLand.closestEnemyFlag);
+        else
+            layOfTheLand.closestEnemyFlagDist = Integer.MAX_VALUE;
+    }
+    public static MapLocation findClosest(FlagInfo[] locs , RobotController me){
+        MapLocation[] flags = new MapLocation[locs.length];
+        for(int i =0 ; i< locs.length ; i++){
+            flags[i] = locs[i].getLocation();
+        }
+        return findClosest(flags,me);
+    }
+
+    public static MapLocation findClosest(MapLocation[] locs , RobotController me){
+        int closestDist = Integer.MAX_VALUE;
+        MapLocation closest = null;
+        int dist = Integer.MAX_VALUE;
+        for(MapLocation loc : locs){
+            dist = loc.distanceSquaredTo(me.getLocation());
+            if(closest==null || dist<closestDist){
+                closest = loc;
+                closestDist = dist;
+            };
+        }
+        return closest;
+    }
+
+    private void scanAndUpdateMap() throws GameActionException {
+        if(turnCount.isSetupRound()) {
+            MapInfo[] infos = me.senseNearbyMapInfos(); // expensive...but screw it, we can optimize scanning stuff later.
+            for(MapInfo mapInfo : infos ){
+                if(hasBeenSeen(mapInfo)) {
+                    updateLocalMap(mapInfo);
+                    shareFindings(mapInfo);
+                }
+            }
+            comms.flushArrayBuffer();
+        }
+    }
+
+    private void shareFindings(MapInfo info) throws GameActionException {
+        try {
+            if( comms.canWrite() && isLandInteresting(info)
+            ){
+                comms.writeToArrayBuffer(info);
+            }
+        } catch (CommsUtil.ForgotToInitMapSize e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean isLandInteresting(MapInfo info) {
+        return info.getTrapType() != TrapType.NONE
+                || !info.isPassable()
+                || info.isSpawnZone();
+    }
+
+    private void updateLocalMap(MapInfo info) {
+        layOfTheLand.map[info.getMapLocation().x][info.getMapLocation().y] = info;
+    }
+
+    private boolean hasBeenSeen(MapInfo info) {
+        return layOfTheLand.map[info.getMapLocation().x][info.getMapLocation().y] instanceof UnknownMapInfo;
+    }
+
+    public void readNews(){
+        // In the setup rounds, everything is map awareness.
+        if( turnCount.isSetupRound() ) {
+            updateMapInfo();
+        }
+    }
+
+    private void updateMapInfo() {
+        try {
+            List<MapInfo> updates = comms.readAllAsMapInfo();
+            for(MapInfo update : updates){
+                updateLocalMap(update);
+                me.setIndicatorLine(me.getLocation(),update.getMapLocation(),100,25,100);
+            }
+        } catch (GameActionException e) {
+            System.err.println(e);
+        } catch (CommsUtil.ForgotToInitMapSize e) {
+            System.err.println(e);
+        }
     }
 
     private boolean isLocationInMap(MapLocation loc) {
         return loc.x < me.getMapWidth() && loc.y < me.getMapHeight() && loc.x >= 0 && loc.y >= 0;
-    }
-
-    public void move(Direction dir) throws GameActionException {
-        layOfTheLand.lastLocation = me.getLocation();
-        me.move(dir);
     }
 
 }

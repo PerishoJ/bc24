@@ -16,6 +16,8 @@ public interface BrightIdea {
     /**
      * Do it to it
      */
-    void getErDone(Cowboy me) throws GameActionException;
+    void getErDone(Cowboy me) throws Exception;
+
+    String getName();
 
 }

@@ -1,6 +1,7 @@
 package tx.comms;
 
 import battlecode.common.*;
+import jdk.jfr.Enabled;
 import junit.framework.TestCase;
 
 import java.util.Random;
@@ -123,7 +124,7 @@ public class CommsUtilTest extends TestCase {
     }
 
 
-    public void testTestReadWriteCycleSecondTurn() throws GameActionException {
+    public void testReadWriteCycleSecondTurn() throws GameActionException {
         //GIVEN
         // some unit inits game
         CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
@@ -136,9 +137,9 @@ public class CommsUtilTest extends TestCase {
         // Write to some odds
         turnCount.inc();
         uut.preTurnWarmup();
-        uut.flushArrayBuffer();
         // This will overwrite inputData with fresh values and write them
         writeSomeData(inputData, uut);
+        uut.flushArrayBuffer();
 
         turnCount.inc();
         uut.preTurnWarmup();
@@ -149,6 +150,125 @@ public class CommsUtilTest extends TestCase {
             assertEquals(inputData[i], data[i]);
         }
     }
+
+    public void testReadWriteCycleThirdTurn() throws GameActionException {
+        //GIVEN
+        // some unit inits game
+        CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
+        uut.preTurnWarmup();
+        int[] inputData = new int[3];
+        writeSomeData(inputData, uut);
+        // Write to evens
+        uut.flushArrayBuffer();
+
+        // Write to some odds
+        turnCount.inc();
+        uut.preTurnWarmup();
+        // This will overwrite inputData with fresh values and write them
+        writeSomeData(inputData, uut);
+        uut.flushArrayBuffer();
+
+        // Write to some odds
+        turnCount.inc();
+        uut.preTurnWarmup();
+        // This will overwrite inputData with fresh values and write them
+        writeSomeData(inputData, uut);
+        uut.flushArrayBuffer();
+
+        turnCount.inc();
+        uut.preTurnWarmup();
+        int[] data = uut.readAll();
+
+        assertEquals(inputData.length,data.length);
+        for(int i = 0 ; i<inputData.length ; i++) {
+            assertEquals(inputData[i], data[i]);
+        }
+    }
+
+    public void testReadWriteCycleFirstTurn_TwoBots() throws GameActionException {
+        //GIVEN
+        // first bot gets its first  turn
+        CommsUtil uut  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
+        uut.preTurnWarmup();
+        int[] inputData = new int[3];
+        writeSomeData(inputData, uut);
+        uut.flushArrayBuffer();
+
+        // then the second bot gets its first turn
+        CommsUtil anotherBot  = new CommsUtil( GameConstants.MAP_MAX_HEIGHT,sharedArray,turnCount);
+        anotherBot.preTurnWarmup();
+        int[] otherInputData = new int[4];
+        writeSomeData(otherInputData, anotherBot);
+        anotherBot.flushArrayBuffer();
+
+        turnCount.inc();
+        //Check the first turn
+        int[] allValidData = concatArrays(inputData, otherInputData);
+
+        uut.preTurnWarmup();
+        int[] data = uut.readAll();
+        // Validate turn 1 values for first bot
+        assertEquals(allValidData.length,data.length);
+        for(int i = 0 ; i<data.length ; i++) {
+            assertEquals("Error on index " + i, allValidData[i], data[i]);
+        }
+
+        inputData = new int[3];
+        writeSomeData(inputData, uut);
+        uut.flushArrayBuffer();
+        // Validate turn 1 values for second both
+        assertEquals(allValidData.length,data.length);
+        anotherBot.preTurnWarmup();
+        int[] dataII = uut.readAll();
+
+        for(int i = 0 ; i<dataII.length ; i++) {
+            assertEquals("Error on index " + i,allValidData[i], dataII[i]);
+        }
+        otherInputData = new int[4];
+        writeSomeData(otherInputData, anotherBot);
+        anotherBot.flushArrayBuffer();
+
+        // WHEN
+        turnCount.inc();
+        uut.preTurnWarmup();
+        anotherBot.preTurnWarmup();
+        data = uut.readAll();
+        dataII = uut.readAll();
+
+
+        allValidData = concatArrays(inputData, otherInputData);
+        //THEN
+        assertEquals(allValidData.length,data.length);
+        for(int i = 0 ; i<data.length ; i++) {
+            assertEquals("Error on index " + i, allValidData[i], data[i]);
+        }
+        for(int i = 0 ; i<dataII.length ; i++) {
+            assertEquals("Error on index " + i,allValidData[i], dataII[i]);
+        }
+    }
+
+    private int[] concatArrays(int[] inputData, int[] otherInputData) {
+        int[] validData = new int [inputData.length + otherInputData.length];
+        for(int i = 0; i < inputData.length ; i ++){
+            validData[i] = inputData[i];
+        }
+        for(int i = 0; i < otherInputData.length ; i ++){
+            validData[i + inputData.length ] = otherInputData[i];
+        }
+        return validData;
+    }
+
+
+    public void testLastModifiedBlock(){
+        for(int i =0 ; i< 100 ; i++) {
+            CommsUtil.LastModified lastModified = CommsUtil.LastModified.createBinary(i);
+            assertTrue(lastModified.isValid());
+            CommsUtil.LastModified deser = CommsUtil.LastModified.readBinary(lastModified.rawBits);
+            assertTrue(deser.isValid());
+        }
+
+    }
+
 
     private static void writeSomeData(int[] inputData, CommsUtil uut) throws GameActionException {
         for(int i = 0; i< inputData.length ; i++) {
