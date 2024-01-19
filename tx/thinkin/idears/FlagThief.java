@@ -32,7 +32,7 @@ public class FlagThief implements BrightIdea {
     public void getErDone(Cowboy me) throws Exception {
         //If you have the flag... GO HOME
         if(me.me.hasFlag()){
-            me.move( bug.go(me.layOfTheLand.closestSpawn) );
+             bug.go(me.layOfTheLand.closestSpawn);
         }
         // or else try to steal it.
         if(canIGetFlag(me)){
@@ -40,7 +40,7 @@ public class FlagThief implements BrightIdea {
             me.me.pickupFlag(me.layOfTheLand.closestEnemyFlag);
         } else {
             System.out.println("Trying to get to the flag.");
-            me.move( bug.go(me.layOfTheLand.closestEnemyFlag) );
+            bug.go(me.layOfTheLand.closestEnemyFlag);
         }
     }
 

@@ -1,9 +1,9 @@
 package tx.thinkin;
 
 import battlecode.common.*;
-import scala.Int;
 import tx.Cowboy;
-import tx.thinkin.idears.GetOnGet;
+import tx.map.MapScribbles;
+import tx.map.AintSeenIt;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ import java.util.List;
  */
 public strictfp class BigPicture {
 
-    public final MapInfo[][] map;
+    final private MapScribbles[][] map;
     public final int mapWidth,mapHeight;
     /** bad guys*/
     public List<RobotInfo> muchachos ;
@@ -129,20 +129,34 @@ public strictfp class BigPicture {
     public BigPicture(int mapWidth, int mapHeight) {
         this.mapWidth = mapWidth;
         this.mapHeight = mapHeight;
-        map = new MapInfo[mapWidth][mapHeight];
+        map = new MapScribbles[mapWidth][mapHeight];
     }
 
-    public MapInfo getLocalInfo (MapLocation location) throws ArrayIndexOutOfBoundsException{
-        if(isOffMap(location)){
+    public MapScribbles getLocalInfo(int x, int y){
+        if(isOffMap(x,y)){
             throw new ArrayIndexOutOfBoundsException("You're checkin' something off the map.");
         }
-        return map[location.x][location.y];
+        MapScribbles loc = map[x][y];
+        if(loc == null){ // Lazy load map info.
+            loc = new MapScribbles( new AintSeenIt(x,y) );
+            map[x][y] = loc;
+        }
+        return loc;
+    }
+    public MapScribbles getLocalInfo (MapLocation location) throws ArrayIndexOutOfBoundsException{
+        return getLocalInfo(location.x,location.y);
+    }
+
+    public void updateLocalMap(MapInfo info) {
+        map[info.getMapLocation().x][info.getMapLocation().y].setInfo( info );
     }
 
     public boolean isOffMap(MapLocation location) {
-        return location.x < 0 || location.y < 0 || location.x >= mapWidth || location.y >= mapHeight;
+        return isOffMap(location.x,location.y);
     }
 
-
+    public boolean isOffMap(int x , int y) {
+        return x < 0 || y < 0 || x >= mapWidth || y >= mapHeight;
+    }
 
 }

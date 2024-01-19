@@ -34,7 +34,7 @@ public class RememberTheAlamo implements BrightIdea{
                     me.me.attack(badLoc);
                 }
             } else {
-               me.move( bug.go(badLoc) );
+              bug.go(badLoc);
             }
         }
     }

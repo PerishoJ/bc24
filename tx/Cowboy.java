@@ -6,7 +6,7 @@ import tx.thinkin.Noggin;
 import tx.comms.CommsUtil;
 import tx.thinkin.idears.BrightIdea;
 import battlecode.common.*;
-import tx.map.UnknownMapInfo;
+import tx.map.AintSeenIt;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -38,22 +38,9 @@ public strictfp class Cowboy {
 
     public void wakeup(){
         layOfTheLand = new BigPicture(me.getMapWidth(),me.getMapHeight());
-        pencilOutTheMap();
         comms = new CommsUtil( me.getMapHeight() , me,turnCount);
-        thinker = new Noggin(layOfTheLand,me);
+        thinker = new Noggin(layOfTheLand, this); // TODO This circular dependency is probably less than good :(
         findChunkSize(me.getMapWidth(),me.getMapHeight(),GameConstants.SHARED_ARRAY_LENGTH / 2);
-
-    }
-
-    /**
-     * Just dump in some junk for now. We'll fill this out later.
-     */
-    private void pencilOutTheMap() {
-        for(int x = 0 ; x < me.getMapWidth() ; x++){
-            for (int y = 0 ; y < me.getMapHeight() ; y++){
-                layOfTheLand.map[x][y] = new UnknownMapInfo(x,y);
-            }
-        }
     }
 
 
@@ -196,7 +183,7 @@ public strictfp class Cowboy {
             MapInfo[] infos = me.senseNearbyMapInfos(); // expensive...but screw it, we can optimize scanning stuff later.
             for(MapInfo mapInfo : infos ){
                 if(hasBeenSeen(mapInfo)) {
-                    updateLocalMap(mapInfo);
+                    layOfTheLand.updateLocalMap(mapInfo);
                     shareFindings(mapInfo);
                 }
             }
@@ -221,12 +208,9 @@ public strictfp class Cowboy {
                 || info.isSpawnZone();
     }
 
-    private void updateLocalMap(MapInfo info) {
-        layOfTheLand.map[info.getMapLocation().x][info.getMapLocation().y] = info;
-    }
 
     private boolean hasBeenSeen(MapInfo info) {
-        return layOfTheLand.map[info.getMapLocation().x][info.getMapLocation().y] instanceof UnknownMapInfo;
+        return layOfTheLand.getLocalInfo(info.getMapLocation()).getInfo() instanceof AintSeenIt;
     }
 
     public void readNews(){
@@ -240,12 +224,11 @@ public strictfp class Cowboy {
         try {
             List<MapInfo> updates = comms.readAllAsMapInfo();
             for(MapInfo update : updates){
-                updateLocalMap(update);
+                layOfTheLand.updateLocalMap(update);
                 me.setIndicatorLine(me.getLocation(),update.getMapLocation(),100,25,100);
             }
-        } catch (GameActionException e) {
-            System.err.println(e);
-        } catch (CommsUtil.ForgotToInitMapSize e) {
+        } catch (GameActionException | CommsUtil.ForgotToInitMapSize e) {
+            e.printStackTrace();
             System.err.println(e);
         }
     }

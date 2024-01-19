@@ -8,16 +8,16 @@ import battlecode.common.TrapType;
 /**
  * Reserved only for showing unknown values on the local map while also making it usable for navigation and etc.
  */
-public class UnknownMapInfo extends MapInfo {
-    public UnknownMapInfo(MapLocation loc, boolean isPassable, boolean isWall, boolean isDam, int spawnZone, boolean isWater, int crumbsAmount, TrapType trapType, Team territory) {
+public class AintSeenIt extends MapInfo {
+    public AintSeenIt(MapLocation loc, boolean isPassable, boolean isWall, boolean isDam, int spawnZone, boolean isWater, int crumbsAmount, TrapType trapType, Team territory) {
         super(loc, isPassable, isWall, isDam , spawnZone, isWater, crumbsAmount, trapType , territory);
     }
 
-    public UnknownMapInfo(int x , int y){
+    public AintSeenIt(int x , int y){
         this(new MapLocation(x,y));
     }
 
-    public UnknownMapInfo(MapLocation loc){
+    public AintSeenIt(MapLocation loc){
        super(loc,true,false,false,0,false,0,TrapType.NONE, Team.NEUTRAL);
     }
 }

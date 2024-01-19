@@ -54,12 +54,7 @@ public class MeanderAround implements BrightIdea {
         rc.setIndicatorDot(rndPt, 10,59,200);
         rc.setIndicatorLine(rc.getLocation(),rndPt,10,100,200);
         try {
-           Direction dir = bug.go(rndPt);
-           if(rc.canMove(dir)){
-               yoursTruly.move(dir);
-           } else {
-               throw new Exception("");// just get caught and try to go somewhere.
-           }
+           bug.go(rndPt);
         } catch (Exception e) {
             for(int i = 0; i< MOVE_TRIES; i++){
                 Direction dir = directions[rng.nextInt(directions.length)];

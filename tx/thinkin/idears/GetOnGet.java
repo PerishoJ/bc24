@@ -29,7 +29,7 @@ public class GetOnGet implements BrightIdea{
         retreatDir= null;
         if(closestFriend!=null){
             try {
-                retreatDir = bug.go(closestFriend.location);
+                bug.go(closestFriend.location);
             } catch (Exception e) {
                 System.err.println("error pathing to closest friend during retreat" + e);
             }
@@ -37,13 +37,12 @@ public class GetOnGet implements BrightIdea{
             MapLocation closeSpawn = findClosestSpawn(I);
             // there HAS to be spawn locations...or there would be no game. Assume not null.
             try {
-                retreatDir = bug.go(closeSpawn);
+                bug.go(closeSpawn);
             } catch (Exception e) {
                 System.err.println("Error trying to nav to nearest spawn." + e.getMessage());
             }
         }
 
-        yoursTruly.move(retreatDir);
 
         I.setIndicatorString("RETREAT!");
     }

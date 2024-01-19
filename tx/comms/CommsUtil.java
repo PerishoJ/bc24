@@ -88,18 +88,7 @@ public class CommsUtil {
     }
 
     public  int serializeType(MapInfo loc , Team homeTeam) {
-        Team spawnZone = null;
-        switch (loc.getSpawnZoneTeam()){
-            case 1:
-                spawnZone = Team.A;
-                break;
-            case 2:
-                spawnZone = Team.B;
-                break;
-            default:
-                spawnZone = Team.NEUTRAL;
-                break;
-        }
+        Team spawnZone = loc.getSpawnZoneTeam();
 
         if (loc.isPassable() && loc.getTrapType().equals(TrapType.NONE) && !loc.isSpawnZone()){
             return 0; // nothing

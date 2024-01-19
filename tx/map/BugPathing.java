@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
 
+import static java.nio.file.Files.move;
+
 /**
  * Shooting for simple Bug or A*
  *
@@ -54,16 +56,19 @@ public class BugPathing implements PathFinding {
      *     |==|==|==|
      * </pre>
      */
-    public Direction go(MapLocation target) throws Exception {
+    public void go(MapLocation target) throws Exception {
         Direction dir = loggedGo(target);
         printLog();
-        return dir;
+        if (me.canMove(dir)){
+            layOfTheLand.lastLocation = me.getLocation();
+            me.move(dir);
+        }
     }
     private Direction loggedGo(MapLocation target) throws Exception{
 
         Direction beeline = me.getLocation().directionTo(target);
         MapLocation desiredLoc = me.getLocation().add(beeline);
-        MapInfo mapInfo = layOfTheLand.getLocalInfo(desiredLoc);
+        MapScribbles mapInfo = layOfTheLand.getLocalInfo(desiredLoc);
 
         Direction moveDir = beeline;
         try {
@@ -116,7 +121,7 @@ public class BugPathing implements PathFinding {
      * @param mapInfo
      * @return
      */
-    private boolean isClearOfObstacle(MapLocation target, MapLocation desiredLoc, MapInfo mapInfo) throws GameActionException {
+    private boolean isClearOfObstacle(MapLocation target, MapLocation desiredLoc, MapScribbles mapInfo) throws GameActionException {
         return !layOfTheLand.isOffMap(desiredLoc)
                 && desiredLoc.distanceSquaredTo(target) < wallFollowInitialDistance
                 && canTravel(mapInfo);
@@ -136,7 +141,7 @@ public class BugPathing implements PathFinding {
      */
     private Direction followWall() throws Exception {
         Direction checkDir = moveDir.opposite() ;
-        MapInfo checkBlock = null ;
+        MapScribbles checkBlock = null ;
         int howManyDirsChecked = 0;
         //rotate - find first TRAVERSABLE block
         do{
@@ -183,7 +188,7 @@ public class BugPathing implements PathFinding {
     }
 
 
-    private boolean canTravel(MapInfo checkBlock) throws GameActionException {
+    private boolean canTravel(MapScribbles checkBlock) throws GameActionException {
         return checkBlock != null
                 && !layOfTheLand.isOffMap(checkBlock.getMapLocation())
                 && checkBlock.isPassable()

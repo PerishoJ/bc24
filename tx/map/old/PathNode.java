@@ -1,8 +1,6 @@
-package tx.map;
+package tx.map.old;
 
-import org.apache.commons.lang3.NotImplementedException;
-
-import java.util.List;
+import java.util.Objects;
 
 /**
  * Just a utility class for a graph Node.
@@ -10,13 +8,17 @@ import java.util.List;
  * @param <T>
  */
 
-
+@Deprecated
 public class PathNode <T>{
 
     int score = Integer.MAX_VALUE; // left kinda generic. Override the getters and settings to give it meaning.
     public PathNode<T> parent;
-    protected T base;
+    T base;
     public PathNode<T> next;
+
+    public T getBase(){
+        return base;
+    }
 
     public boolean isScored(){
         return score != Integer.MAX_VALUE;
@@ -71,9 +73,16 @@ public class PathNode <T>{
         return next;
     }
 
-    public List<T> getNeighbors(){
-        throw new NotImplementedException(); // yeah, we gotta override this shit.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PathNode<?> pathNode = (PathNode<?>) o;
+        return Objects.equals(base, pathNode.base);
     }
 
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(base);
+    }
 }
