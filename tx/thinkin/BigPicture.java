@@ -19,6 +19,8 @@ public strictfp class BigPicture {
     /** bad guys*/
     public List<RobotInfo> muchachos ;
 
+    public Team myTeam;
+
 
     /**Homies brah*/
     public List<RobotInfo> compadres ;
@@ -148,7 +150,12 @@ public strictfp class BigPicture {
     }
 
     public void updateLocalMap(MapInfo info) {
-        map[info.getMapLocation().x][info.getMapLocation().y].setInfo( info );
+        MapScribbles loc = map[info.getMapLocation().x][info.getMapLocation().y];
+        if (loc == null) {
+            map[info.getMapLocation().x][info.getMapLocation().y] = new MapScribbles(info);
+        } else {
+            loc.setInfo(info);
+        }
     }
 
     public boolean isOffMap(MapLocation location) {

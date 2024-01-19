@@ -44,6 +44,8 @@ public class ByteCodeLimiter implements ByteCodeLimiterIF {
     public void setByteCodeLimit(int limit){
         bytecodeLimit = limit;
     }
+
+    @Override
     public int getTicks(){
         return ticks;
     }

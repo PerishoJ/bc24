@@ -17,4 +17,8 @@ public class MockByteCodeLimiter implements ByteCodeLimiterIF{
         //pass
     }
 
+    @Override
+    public int getTicks() {
+        return ticks;
+    }
 }

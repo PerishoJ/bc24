@@ -38,9 +38,19 @@ public strictfp class Cowboy {
 
     public void wakeup(){
         layOfTheLand = new BigPicture(me.getMapWidth(),me.getMapHeight());
+        pencilInMap(); // you have cycles on startup. USE THEM. Don't lazy load because we'll need those cycles more after turn 200.
+        layOfTheLand.myTeam = me.getTeam();
         comms = new CommsUtil( me.getMapHeight() , me,turnCount);
         thinker = new Noggin(layOfTheLand, this); // TODO This circular dependency is probably less than good :(
         findChunkSize(me.getMapWidth(),me.getMapHeight(),GameConstants.SHARED_ARRAY_LENGTH / 2);
+    }
+
+    private void pencilInMap() {
+        for (int i = 0 ; i< me.getMapWidth() ; i++ ){
+            for (int j = 0 ; j < me.getMapHeight() ; j++){
+                layOfTheLand.updateLocalMap(new AintSeenIt(i,j));
+            }
+        }
     }
 
 

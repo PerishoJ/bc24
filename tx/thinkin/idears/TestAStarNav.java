@@ -2,7 +2,7 @@ package tx.thinkin.idears;
 
 import battlecode.common.*;
 import tx.Cowboy;
-import tx.map.old.AStarPathing;
+import tx.map.old.aStarPathing;
 import tx.map.old.PathNode;
 import tx.thinkin.BigPicture;
 import tx.util.ByteCodeLimiter;
@@ -10,7 +10,7 @@ import tx.util.ByteCodeLimiter;
 @Deprecated
 public class TestAStarNav implements BrightIdea{
 
-    AStarPathing pathing;
+    aStarPathing pathing;
     MapLocation sampleTargetLocation;
     PathNode<MapLocation> path;
 
@@ -21,7 +21,7 @@ public class TestAStarNav implements BrightIdea{
     public int howAboutThat(BigPicture bigPicture, RobotController rc) {
         turn++;
         if(pathing == null || turn > retry) {
-            pathing = new AStarPathing(bigPicture);
+            pathing = new aStarPathing(bigPicture);
             pathing.setByteCodeLimiter(limiter);
             pathing.setByteCodeLimit(10000);
             turn = 0;

@@ -11,16 +11,16 @@ import java.util.List;
 
 public class AStarPathingTest extends TestCase {
     BigPicture bigPicture = new BigPicture(30,30);
-    AStarPathing pathing = new AStarPathing(bigPicture);
+    aStarPathing pathing = new aStarPathing(bigPicture);
     public void testAStarNeighborExpansion(){
-        PathNode<MapLocation> testLoc = PathNode.root(bigPicture.getLocalInfo(new MapLocation(10,10)).getMapLocation());
+        PathNode<MapLocation> testLoc = PathNode.root(bigPicture.getLocalInfo(new MapLocation(10,10)).loc());
         List<PathNode<MapLocation>> neighbors = pathing.getNeighbors(testLoc);
         assertEquals(8,neighbors.size());
     }
 
     public void testAStarPathing() throws OutOfTimeException, GameActionException {
-        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).getMapLocation();
-        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).getMapLocation();
+        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).loc();
+        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).loc();
 
         PathNode<MapLocation> path = pathing.findPath(start,target);
         Assert.assertEquals(path.getBase() , start);
@@ -38,8 +38,8 @@ public class AStarPathingTest extends TestCase {
 
 
     public void testAStarPathingWithObstacle() throws OutOfTimeException, GameActionException {
-        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).getMapLocation();
-        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).getMapLocation();
+        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).loc();
+        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).loc();
         bigPicture.updateLocalMap( addWall( 10, 11));
 
         PathNode<MapLocation> path = pathing.findPath(start,target);
@@ -57,8 +57,8 @@ public class AStarPathingTest extends TestCase {
     }
 
     public void testAStarPathingWithObstaclePerformanceCheck() throws OutOfTimeException, GameActionException {
-        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).getMapLocation();
-        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).getMapLocation();
+        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).loc();
+        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).loc();
         bigPicture.updateLocalMap( addWall( 10, 11));
         MockByteCodeLimiter limiter = new MockByteCodeLimiter();
         pathing.setByteCodeLimiter(limiter);
@@ -67,8 +67,8 @@ public class AStarPathingTest extends TestCase {
     }
 
     public void testAStarPathingWithBiggerObstaclePerformanceCheck() throws OutOfTimeException, GameActionException {
-        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).getMapLocation();
-        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).getMapLocation();
+        MapLocation start = bigPicture.getLocalInfo(new MapLocation(10,10)).loc();
+        MapLocation target = bigPicture.getLocalInfo(new MapLocation(10,12)).loc();
         bigPicture.updateLocalMap( addWall( 9, 11));
         bigPicture.updateLocalMap( addWall( 10, 11));
         bigPicture.updateLocalMap( addWall( 11, 11));

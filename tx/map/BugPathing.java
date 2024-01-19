@@ -9,8 +9,6 @@ import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
 
-import static java.nio.file.Files.move;
-
 /**
  * Shooting for simple Bug or A*
  *
@@ -164,10 +162,10 @@ public class BugPathing implements PathFinding {
         } while( canTravel(checkBlock) );
 
         // rotate back to the last block, which was TRAVERSABLE
-        if(historySet.contains(checkBlock.getMapLocation())){
+        if(historySet.contains(checkBlock.loc())){
             counterClockWise = RobotPlayer.rng.nextBoolean();// Try going another way if it doesn't work
         }
-        addToHistory(checkBlock.getMapLocation());
+        addToHistory(checkBlock.loc());
         return prevDirection(checkDir);
     }
 
@@ -190,9 +188,9 @@ public class BugPathing implements PathFinding {
 
     private boolean canTravel(MapScribbles checkBlock) throws GameActionException {
         return checkBlock != null
-                && !layOfTheLand.isOffMap(checkBlock.getMapLocation())
+                && !layOfTheLand.isOffMap(checkBlock.loc())
                 && checkBlock.isPassable()
-                && !me.isLocationOccupied(checkBlock.getMapLocation());
+                && !me.isLocationOccupied(checkBlock.loc());
     }
 
 

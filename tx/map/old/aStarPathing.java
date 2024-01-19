@@ -10,12 +10,12 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 @Deprecated
-public class AStarPathing extends Dijkstra<MapLocation>{
+public class aStarPathing extends Dijkstra<MapLocation>{
     public static final int WATER_HAZARD = GameConstants.FILL_COOLDOWN / 10;
     public static final int TURN_DAMAGE = 150;
     public static final int EXPLOSIVE_COST = TrapType.EXPLOSIVE.enterDamage / TURN_DAMAGE;
     private final BigPicture layOfTheLand;
-    public AStarPathing(BigPicture layOfTheLand) {
+    public aStarPathing(BigPicture layOfTheLand) {
         this.layOfTheLand = layOfTheLand;
         nodesToCheck = new PriorityQueue<>((a,b)->a.score-b.score); // We want the lowest score to be first on the queue
     }

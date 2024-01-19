@@ -32,7 +32,8 @@ public class Noggin {
         ideas.add(new FlagThief());
         ideas.add(new Trapper());
 //        ideas.add(new TestBugNav());
-        ideas.add(new TestAStarNav());
+//        ideas.add(new TestAStarNav());
+        ideas.add(new BlazinSomeTrails());
     }
 
     public BrightIdea ponder (BigPicture layOfTheLand){
