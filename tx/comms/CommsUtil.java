@@ -88,7 +88,8 @@ public class CommsUtil {
     }
 
     public  int serializeType(MapInfo loc , Team homeTeam) {
-        Team spawnZone = loc.getSpawnZoneTeam();
+        Team spawnZone = Team.NEUTRAL;
+        spawnZone = convertIntToTeam(loc,homeTeam);
 
         if (loc.isPassable() && loc.getTrapType().equals(TrapType.NONE) && !loc.isSpawnZone()){
             return 0; // nothing
@@ -111,6 +112,19 @@ public class CommsUtil {
         }
     }
 
+    private static Team convertIntToTeam(MapInfo loc, Team homeTeam) {
+        Team spawnZone;
+        switch(loc.getSpawnZoneTeam()){
+            case 1:
+                spawnZone= homeTeam;
+            case 2:
+                spawnZone= homeTeam.opponent();
+            default:
+                spawnZone=Team.NEUTRAL;
+        }
+        return spawnZone;
+    }
+
     public  MapInfo deserializeType(MapLocation loc, int ser, Team hometeam){
         switch(ser){
             case 0: // nothing
@@ -120,7 +134,7 @@ public class CommsUtil {
             case 2: // water
                 return new MapInfo(loc,false,false, false ,0,true,0,TrapType.NONE, Team.NEUTRAL);
             case 3: // home spawn
-                return new MapInfo(loc,true ,false, false ,hometeam.equals(Team.A)?1:2,false,0,TrapType.NONE, Team.NEUTRAL);
+                return new MapInfo(loc,true ,false, false ,hometeam.ordinal(),false,0,TrapType.NONE, Team.NEUTRAL);
             case 4:
                 return new MapInfo(loc,true ,false,false ,0,false,0,TrapType.WATER, Team.NEUTRAL);
             case 5:
@@ -128,7 +142,7 @@ public class CommsUtil {
             case 6:
                 return new MapInfo(loc,true ,false,false ,0,false,0,TrapType.STUN, Team.NEUTRAL);
             case 7:
-                return new MapInfo(loc,true ,false,false ,hometeam.equals(Team.A)?2:1,false,0,TrapType.NONE, Team.NEUTRAL);
+                return new MapInfo(loc,true ,false,false ,hometeam.ordinal(),false,0,TrapType.NONE, Team.NEUTRAL);
             default:
                 return new MapInfo(loc,true ,false,false ,0,false,0,TrapType.NONE, Team.NEUTRAL);
 

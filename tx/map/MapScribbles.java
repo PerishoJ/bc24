@@ -6,7 +6,7 @@ import battlecode.common.Team;
 
 import java.util.Objects;
 
-public class MapScribbles {
+public class MapScribbles implements Comparable<MapScribbles>{
     boolean isOccupied = false;
     /**Every Pathing operation marks up the map. If we keep an ID, we don't have to erase the whole map every iteration*/
     int requestID = -1;
@@ -108,5 +108,12 @@ public class MapScribbles {
 
     public Team getOccupantTeam(){
         return occupantTeam;
+    }
+
+
+
+    @Override
+    public int compareTo(MapScribbles other) {
+        return loc().compareTo(other.loc());
     }
 }

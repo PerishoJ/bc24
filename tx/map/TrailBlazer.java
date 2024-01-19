@@ -36,18 +36,23 @@ public class TrailBlazer {
     }
 
     ByteCodeLimiterIF limiter ;
-    PriorityQueue<MapScribbles> placeToCheck = new PriorityQueue<>();
+    PriorityQueue<MapScribbles> placeToCheck
+            = new PriorityQueue<MapScribbles>( (a,b)->a.getPathLength()-b.getPathLength()) ; //Reverse order
     public TrailBlazer(BigPicture layOfTheLand) {
         this.layOfTheLand = layOfTheLand;
         limiter = new ByteCodeLimiter();
     }
 
-
-
     public int blazeATrail(MapLocation start, MapLocation destination) throws OutOfTimeException {
-        return blazeATrail(start.x,start.y,destination.x,destination.y);
+        return blazeATrail(start.x,start.y,destination.x,destination.y, null);
     }
 
+    public int blazeATrail(MapLocation start, MapLocation destination, Integer salt) throws OutOfTimeException {
+        return blazeATrail(start.x,start.y,destination.x,destination.y, salt);
+    }
+    public int blazeATrail(int startX, int startY, int endX, int endY ) throws OutOfTimeException {
+        return blazeATrail( startX,  startY, endX, endY , null);
+    }
     /**
      * This SHOULD map the map with a trail, and you SHOULD be at the beginning of it.
      * But shit happens.
@@ -59,9 +64,12 @@ public class TrailBlazer {
      * @param endY end loc, y coord
      * @return
      */
-    public int blazeATrail(int startX, int startY, int endX, int endY) throws OutOfTimeException {
+    public int blazeATrail(int startX, int startY, int endX, int endY , Integer salt) throws OutOfTimeException {
         limiter.resetClock();
-        int requestID = Objects.hash(startX,startY,endX,endY);
+        int requestID = salt==null?
+                Objects.hash(startX,startY,endX,endY):
+                Objects.hash(startX,startY,endX,endY,salt)
+                ;
         if(isNewPathRequest(requestID)){ // update if new request.
             current = layOfTheLand.getLocalInfo(startX,startY);
             current.setNext(null);
@@ -76,7 +84,7 @@ public class TrailBlazer {
         // the means the start and end SHOULD be the same.
         // Meaning we can just pick up where we left off.
         
-        while(current.loc().x != endX && current.loc().y != endY){ // Maybe make an expanding range as the algorithm fails? TODO approximate path
+        while(isNotDeadEnd() && isNotDestination(endX,endY)){ // Maybe make an expanding range as the algorithm fails? TODO approximate path
             for(Direction dir : cardinal){
                 checkLocation(dir, current, goal, requestID, 1);
             }
@@ -91,9 +99,16 @@ public class TrailBlazer {
 
     }
 
+    private boolean isNotDestination(int endX, int endY) {
+        return current.loc().x != endX && current.loc().y != endY;
+    }
+    private boolean isNotDeadEnd() {
+        return current != null;
+    }
+
     private void backFillPath(MapScribbles last){
         MapScribbles t_node = last;
-        while(t_node.getPrev()!=null){
+        while(t_node!=null && t_node.getPrev()!=null){
             t_node.getPrev().setNext(t_node);
             t_node=t_node.getPrev();
         }
@@ -105,9 +120,17 @@ public class TrailBlazer {
 
     private void checkLocation(Direction dir, MapScribbles current, MapScribbles goal, int requestID, int distanceSquaredFromPrev) {
         MapLocation nextLoc = current.loc().add(dir);
-        MapScribbles neighbor = layOfTheLand.getLocalInfo(nextLoc);
+
+        if(layOfTheLand.isOffMap(nextLoc)) {
+            return;
+        }
+
+        MapScribbles neighbor = null;
+        neighbor = layOfTheLand.getLocalInfo(nextLoc);
+
         if(shouldSkipNode(neighbor))
             return;
+
         int updatedPathLength = current.pathLength 
                 + distanceSquaredFromPrev 
                 + A_StarHeuristic(current, goal);

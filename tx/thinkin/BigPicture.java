@@ -136,7 +136,7 @@ public strictfp class BigPicture {
 
     public MapScribbles getLocalInfo(int x, int y){
         if(isOffMap(x,y)){
-            throw new ArrayIndexOutOfBoundsException("You're checkin' something off the map.");
+            throw new ArrayIndexOutOfBoundsException("You're checkin' something off the map. ["+x+","+y+"]");
         }
         MapScribbles loc = map[x][y];
         if(loc == null){ // Lazy load map info.

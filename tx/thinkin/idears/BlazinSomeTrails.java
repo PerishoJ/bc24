@@ -19,7 +19,7 @@ public class BlazinSomeTrails implements BrightIdea{
     TrailBlazer trailBlazer ;
 
     ByteCodeLimiterIF limiter ;
-    MapLocation goal = new MapLocation( 25,25 );
+    MapLocation goal = new MapLocation( 24,25 );
 
     @Override
     public int howAboutThat(BigPicture bigPicture, RobotController rc) {
@@ -32,19 +32,32 @@ public class BlazinSomeTrails implements BrightIdea{
     }
 
     boolean isFound = false;
+    int salt = 1;
     @Override
     public void getErDone(Cowboy me) throws Exception {
         try {
-            int requestId = trailBlazer.blazeATrail(me.me.getLocation(),goal);
+            int requestId = trailBlazer.blazeATrail(me.me.getLocation(),goal,salt);
             isFound = true;
         } catch (OutOfTimeException e) {
             System.err.println("Ran out of time. " + limiter.getTicks() + " ticks took " + BYTE_CODE_LIMIT + " total bytecodes");
         }
         if(isFound){
             try {
-                Direction dir = findPathDirection(me);
-                if(me.me.canMove(dir)){
-                    me.me.move(dir);
+                MapLocation next = getNextPathLoc(me); // a null value means that you're at the end of the line
+                lightUpTrail(next,me);
+                if(isNotEndOfPath(next)) {
+                    Direction dir = me.me.getLocation().directionTo(next);
+                    if (me.me.canMove(dir)) {
+                        me.me.move(dir);
+                    } else {
+                        if(me.me.getMovementCooldownTurns()<10) {
+                            isFound = false;
+                            salt++;
+                        }
+                    }
+                } else {
+                    //TODO check end
+                    isFound = false;
                 }
             } catch (Exception e) {
                 System.err.println(e.getMessage());
@@ -53,16 +66,28 @@ public class BlazinSomeTrails implements BrightIdea{
         }
     }
 
-    private static Direction findPathDirection(Cowboy me) throws Exception {
-        return me.me.getLocation().directionTo(getNextPathLoc(me));
+    private void lightUpTrail(MapLocation s, Cowboy I){
+        if(s==null) return;
+        MapScribbles start = I.layOfTheLand.getLocalInfo(s);
+        while(start!=null){
+            I.me.setIndicatorDot(start.loc(),0,200,200);
+            start = start.getNext();
+        }
     }
+
+    private static boolean isNotEndOfPath(MapLocation next) {
+        return next != null;
+    }
+
 
     private static MapLocation getNextPathLoc(Cowboy me) throws Exception {
         MapScribbles next = me.layOfTheLand.getLocalInfo(me.me.getLocation()).getNext();
         if(next!=null)
             return next.loc();
         else
-            throw new Exception(" The path is yielding a null NEXT location, meaning it was never laid properly.");
+            return null;// You're at the end, or you hit a deadend
+//        else
+//            throw new Exception(" The path is yielding a null NEXT location, meaning it was never laid properly.");
     }
 
     @Override

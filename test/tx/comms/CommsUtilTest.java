@@ -53,8 +53,6 @@ public class CommsUtilTest extends TestCase {
         Team homeTeam = Team.A;
         for(int i = 0 ; i<8 ; i ++){
             for(int j = 0 ; j< 100 ; j++){
-
-
                 int rngx = GameConstants.MAP_MAX_WIDTH - GameConstants.MAP_MIN_WIDTH;
                 int rngy = GameConstants.MAP_MAX_HEIGHT - GameConstants.MAP_MIN_HEIGHT;
 
