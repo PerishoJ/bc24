@@ -62,6 +62,17 @@ public class BlazinSomeTrails implements BrightIdea{
             } catch (Exception e) {
                 System.err.println(e.getMessage());
                 e.printStackTrace();
+            } finally {
+                System.out.println("========================================================\n");
+                for(Map.Entry<String, Integer> clock : trailBlazer.getMonitor().getClocks()){
+                    System.out.println(clock.getKey() + " : " + clock.getValue() + "\n");
+                }
+                System.out.println("========================================================\n");
+                System.out.println("========================================================\n");
+                for(Map.Entry<String, Integer> metric : trailBlazer.getMonitor().getMetrics()){
+                    System.out.println(metric.getKey() + " : " + metric.getValue() + "\n");
+                }
+                System.out.println("========================================================\n");
             }
         }
     }

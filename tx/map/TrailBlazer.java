@@ -1,18 +1,19 @@
 package tx.map;
 
-import battlecode.common.Direction;
-import battlecode.common.GameConstants;
-import battlecode.common.MapLocation;
-import battlecode.common.TrapType;
+import battlecode.common.*;
 import tx.thinkin.BigPicture;
 import tx.util.ByteCodeLimiter;
 import tx.util.ByteCodeLimiterIF;
+import tx.util.ByteCodeMonitorIF;
 import tx.util.OutOfTimeException;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 public class TrailBlazer {
+    public static final int MAP_AREA_IS_THE_HEAP_INIT_CAPACITY = 60 * 60;
     public boolean shouldIgnorePain = false;
     public static final int HITS_TO_KILL_A_BOT = GameConstants.DEFAULT_HEALTH / 150;
     public static final int TURN_COST_OF_ATTACK = (GameConstants.ATTACK_COOLDOWN / 10);
@@ -36,13 +37,21 @@ public class TrailBlazer {
     }
 
     ByteCodeLimiterIF limiter ;
+
+    ByteCodeMonitorIF monitor;
+
+    long cycleNumber = 0; // Used for tracking the
+
     PriorityQueue<MapScribbles> placeToCheck
-            = new PriorityQueue<MapScribbles>( (a,b)->a.getPathLength()-b.getPathLength()) ; //Reverse order
+            = new PriorityQueue<MapScribbles>(MAP_AREA_IS_THE_HEAP_INIT_CAPACITY, (a, b)->(a.getPathLength()+a.distanceToTarget)
+            -(b.getPathLength()+b.distanceToTarget)) ; //Reverse order, adding A* heuristic to each distance.
+
+    Set<MapScribbles> alreadyChecked = new HashSet<>((int)(MAP_AREA_IS_THE_HEAP_INIT_CAPACITY * 1.3));
     public TrailBlazer(BigPicture layOfTheLand) {
         this.layOfTheLand = layOfTheLand;
         limiter = new ByteCodeLimiter();
+        monitor = (ByteCodeMonitorIF) limiter;
     }
-
     public int blazeATrail(MapLocation start, MapLocation destination) throws OutOfTimeException {
         return blazeATrail(start.x,start.y,destination.x,destination.y, null);
     }
@@ -50,9 +59,11 @@ public class TrailBlazer {
     public int blazeATrail(MapLocation start, MapLocation destination, Integer salt) throws OutOfTimeException {
         return blazeATrail(start.x,start.y,destination.x,destination.y, salt);
     }
+
     public int blazeATrail(int startX, int startY, int endX, int endY ) throws OutOfTimeException {
         return blazeATrail( startX,  startY, endX, endY , null);
     }
+
     /**
      * This SHOULD map the map with a trail, and you SHOULD be at the beginning of it.
      * But shit happens.
@@ -68,14 +79,16 @@ public class TrailBlazer {
         limiter.resetClock();
         int requestID = salt==null?
                 Objects.hash(startX,startY,endX,endY):
-                Objects.hash(startX,startY,endX,endY,salt)
-                ;
+                Objects.hash(startX,startY,endX,endY,salt);
         if(isNewPathRequest(requestID)){ // update if new request.
             current = layOfTheLand.getLocalInfo(startX,startY);
             current.setNext(null);
             current.setPrev(null);
             current.setID(requestID);
             current.setPathLength(0);
+            placeToCheck.clear();
+            alreadyChecked.clear();
+            cycleNumber = 0;
             placeToCheck.add(current);
             goal = layOfTheLand.getLocalInfo(endX,endY);
             pathID = requestID;
@@ -83,29 +96,31 @@ public class TrailBlazer {
         // if the request ID is the same,
         // the means the start and end SHOULD be the same.
         // Meaning we can just pick up where we left off.
-        
-        while(isNotDeadEnd() && isNotDestination(endX,endY)){ // Maybe make an expanding range as the algorithm fails? TODO approximate path
+
+        while(isNotDeadEnd() && isNotDestination(endX,endY)){
             for(Direction dir : cardinal){
                 checkLocation(dir, current, goal, requestID, 1);
             }
             for(Direction dir : inter){
                 checkLocation(dir, current, goal, requestID, 2);
             }
+            alreadyChecked.add(current);
+            int start = Clock.getBytecodeNum();
             current = placeToCheck.poll();
+            System.out.println("Poll ("+placeToCheck.size()+" items) clocks:"+(Clock.getBytecodeNum()-start));
             limiter.tick();
         }
         backFillPath(current);
         return requestID;
 
     }
-
     private boolean isNotDestination(int endX, int endY) {
         return current.loc().x != endX && current.loc().y != endY;
     }
+
     private boolean isNotDeadEnd() {
         return current != null;
     }
-
     private void backFillPath(MapScribbles last){
         MapScribbles t_node = last;
         while(t_node!=null && t_node.getPrev()!=null){
@@ -120,71 +135,98 @@ public class TrailBlazer {
 
     private void checkLocation(Direction dir, MapScribbles current, MapScribbles goal, int requestID, int distanceSquaredFromPrev) {
         MapLocation nextLoc = current.loc().add(dir);
-
+        if(alreadyChecked.contains(nextLoc)) {
+            return;
+        }
         if(layOfTheLand.isOffMap(nextLoc)) {
             return;
         }
+
 
         MapScribbles neighbor = null;
         neighbor = layOfTheLand.getLocalInfo(nextLoc);
 
         if(shouldSkipNode(neighbor))
             return;
+        
+        int updatedPathLength = current.pathLength
+                + distanceSquaredFromPrev
+                + obstacleHeuristic(neighbor) ;
 
-        int updatedPathLength = current.pathLength 
-                + distanceSquaredFromPrev 
-                + A_StarHeuristic(current, goal);
         if(isItChecked(neighbor, requestID)){ // update if shorter
             if (updatedPathLength < neighbor.pathLength){
                 neighbor.pathLength = updatedPathLength;
                 neighbor.prev = current;
-                placeToCheck.remove(neighbor); // We know this has already been checked because of the request ID.
-                placeToCheck.add(neighbor); // Refresh the heap to push correct value up.
+                updateChecked(neighbor);
             }
         } else { // update if not checked
             neighbor.pathLength = updatedPathLength;
             neighbor.prev = current;
             neighbor.setID(requestID);
-            placeToCheck.add(neighbor); //Add to heap 
+            neighbor.distanceToTarget = neighbor.loc().distanceSquaredTo(goal.loc());
+            addChecked(neighbor);
         }
     }
 
+    private void addChecked(MapScribbles neighbor){
+        int start = Clock.getBytecodeNum();
+        placeToCheck.add(neighbor);
+        System.out.println("Add ("+placeToCheck.size()+" total items) clocks:"+(Clock.getBytecodeNum()-start));
+    }
+
+    private void updateChecked(MapScribbles neighbor){
+        int start = Clock.getBytecodeNum();
+        placeToCheck.remove(neighbor); // We know this has already been checked because of the request ID.
+        placeToCheck.add(neighbor); // Refresh the heap to push correct value up.
+        System.out.println("update ("+placeToCheck.size()+" total items) clocks:"+(Clock.getBytecodeNum()-start));
+    }
+
+
     private int obstacleHeuristic ( MapScribbles location) {
+        if (location.obstacle_value == MapScribbles.UNCALCULATED_OBSTACLE_CONSTANT)
+        {
+            location.obstacle_value = calculateObstacleHeuristic(location);
+        }
+        return location.obstacle_value;
+    }
+
+    private int calculateObstacleHeuristic(MapScribbles location) {
         int howShittyIsThis = 0;
         // social anxiety
-        if(location.isOccupied) {
-            if(location.occupantTeam.opponent()==layOfTheLand.myTeam) {
-                howShittyIsThis += TIME_IT_TAKES_TO_MURDER ; // the most polite way to ask someone to move ... is murder. No person was ever left offended.
-            } else if (location.occupantTeam == layOfTheLand.myTeam){
+        if (location.isOccupied) {
+            if (location.occupantTeam.opponent() == layOfTheLand.myTeam) {
+                howShittyIsThis += TIME_IT_TAKES_TO_MURDER; // the most polite way to ask someone to move ... is murder. No person was ever left offended.
+            } else if (location.occupantTeam == layOfTheLand.myTeam) {
                 howShittyIsThis += 10; // They might move...probably not tho
             }
         }
         // nobody likes getting wet unexpectedly
-        if(location.info.isWater())
+        if (location.info.isWater())
             howShittyIsThis += WATER_HAZARD;
 
         // I am moderately okay with getting exploded
-        if (location.info.getTrapType()!= TrapType.NONE){
-            switch(location.info.getTrapType()){
+        if (location.info.getTrapType() != TrapType.NONE) {
+            switch (location.info.getTrapType()) {
                 case EXPLOSIVE:
                     howShittyIsThis += shouldIgnorePain ?
                             0 : // IGNORE THE PAIN! TAKE IT PUSSY!
                             (EXPLODE_DAMAGE * HEALING_COOLDOWN_TURNS / HEALTH_PER_HEAL);// How long to recover ?
                     break;
                 case STUN:
-                    howShittyIsThis += 4 ;// Doc says action cooldowns are set to 40...which is ~ 4 turns.
+                    howShittyIsThis += 4;// Doc says action cooldowns are set to 40...which is ~ 4 turns.
                     break;
                 case WATER:
                     howShittyIsThis += TrapType.WATER.enterRadius * WATER_HAZARD; // the number of waters this is, effectively.
                     break;
             }
         }
+        if(howShittyIsThis<0) howShittyIsThis=0; // clamp at zero.
         return howShittyIsThis;
     }
+
     private boolean shouldSkipNode( MapScribbles location){
        return location.isOccupied || location.info.isDam() || location.info.isWall();
     }
-
     private static int A_StarHeuristic(MapScribbles current, MapScribbles goal) {
         return current.loc().distanceSquaredTo(goal.loc());
     }
@@ -194,8 +236,16 @@ public class TrailBlazer {
     }
 
     Direction[] cardinal = {Direction.NORTH,Direction.SOUTH,Direction.EAST,Direction.WEST};
+
     Direction[] inter = {Direction.NORTHEAST,Direction.NORTHWEST,Direction.SOUTHEAST,Direction.SOUTHWEST};
 
+    public ByteCodeMonitorIF getMonitor() {
+        return monitor;
+    }
+
+    public void setMonitor(ByteCodeMonitorIF monitor) {
+        this.monitor = monitor;
+    }
 
 
 

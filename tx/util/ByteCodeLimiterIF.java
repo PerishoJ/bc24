@@ -13,4 +13,5 @@ public interface ByteCodeLimiterIF {
      * @return number of ticks in a turn.
      */
     int getTicks();
+
 }

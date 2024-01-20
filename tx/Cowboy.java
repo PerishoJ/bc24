@@ -1,6 +1,7 @@
 package tx;
 
 import tx.comms.TurnCount;
+import tx.map.MapScribbles;
 import tx.thinkin.BigPicture;
 import tx.thinkin.Noggin;
 import tx.comms.CommsUtil;
@@ -79,6 +80,9 @@ public strictfp class Cowboy {
     }
 
 
+    public void addABotLocation(RobotInfo botinfo){
+
+    }
     public void move(Direction dir) throws GameActionException {
         if(dir == null){
             System.err.println("Tried to move in a null direction...didn't");
@@ -106,13 +110,12 @@ public strictfp class Cowboy {
     public BrightIdea takeStock(){
         try {
             RobotInfo[] folksRoundHere = me.senseNearbyRobots(-1, null);
-
+            removeOldRobotsFromMap();
             layOfTheLand.compadres = new LinkedList<>();
             layOfTheLand.muchachos = new LinkedList<>();
             layOfTheLand.clearRobotStatistics();
 
             for (RobotInfo bot : folksRoundHere) {
-
                 if (bot.getTeam() == me.getTeam()) {
                     layOfTheLand.addAllyStat(bot,me);
                     layOfTheLand.compadres.add(bot);
@@ -120,6 +123,9 @@ public strictfp class Cowboy {
                     layOfTheLand.addEnemyStat(bot,me);
                     layOfTheLand.muchachos.add(bot);
                 }
+                MapScribbles scbl = layOfTheLand.getLocalInfo(bot.getLocation());
+                scbl.setOccupied(true);
+                scbl.setOccupantTeam(bot.getTeam());
             }
 
             findClosestSpawn();
@@ -140,6 +146,19 @@ public strictfp class Cowboy {
         }
 
         return thinker.ponder(layOfTheLand);
+    }
+
+    private void removeOldRobotsFromMap() {
+        if(layOfTheLand.compadres!=null && !layOfTheLand.compadres.isEmpty()) {
+            for (RobotInfo compadre : layOfTheLand.compadres) {
+                layOfTheLand.removeBotFromMap(compadre);
+            }
+        }
+        if(layOfTheLand.muchachos!=null && !layOfTheLand.muchachos.isEmpty()) {
+            for (RobotInfo muchacho : layOfTheLand.muchachos) {
+                layOfTheLand.removeBotFromMap(muchacho);
+            }
+        }
     }
 
     private void findClosestSpawn() {

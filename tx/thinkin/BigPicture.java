@@ -62,6 +62,17 @@ public strictfp class BigPicture {
          mostDamagedEnemyInRange=null;
     }
 
+    public void addBotToMap(RobotInfo info){
+        MapScribbles loc = getLocalInfo(info.getLocation().x,info.getLocation().y);
+        loc.setOccupied(true);
+        loc.setOccupantTeam(info.getTeam());
+    }
+
+    public void removeBotFromMap(RobotInfo info){
+        MapScribbles loc = getLocalInfo(info.getLocation().x,info.getLocation().y);
+        loc.setOccupied(false);
+        loc.setOccupantTeam(Team.NEUTRAL);
+    }
     public void addEnemyStat(RobotInfo enemy, RobotController rc){
         int dist = enemy.getLocation().distanceSquaredTo(rc.getLocation());
         if(closestEnemy==null ){

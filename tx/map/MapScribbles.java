@@ -7,9 +7,21 @@ import battlecode.common.Team;
 import java.util.Objects;
 
 public class MapScribbles implements Comparable<MapScribbles>{
+    public static final int UNCALCULATED_OBSTACLE_CONSTANT = -1;
     boolean isOccupied = false;
     /**Every Pathing operation marks up the map. If we keep an ID, we don't have to erase the whole map every iteration*/
     int requestID = -1;
+    MapScribbles next;
+
+    MapScribbles prev;
+
+    Team occupantTeam = Team.NEUTRAL;
+
+    int obstacle_value= UNCALCULATED_OBSTACLE_CONSTANT;
+    int pathLength;
+
+    int distanceToTarget;
+
     MapInfo info;
 
     public boolean isOccupied() {
@@ -56,14 +68,6 @@ public class MapScribbles implements Comparable<MapScribbles>{
         this.pathLength = pathLength;
     }
 
-    MapScribbles next;
-
-    MapScribbles prev;
-
-    Team occupantTeam = Team.NEUTRAL;
-
-    int pathLength;
-
     public MapScribbles(MapInfo info) {
         this.info = info;
     }
@@ -95,15 +99,14 @@ public class MapScribbles implements Comparable<MapScribbles>{
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || ! (o instanceof MapScribbles) ) return false;
         MapScribbles that = (MapScribbles) o;
         return info.getMapLocation().x == that.info.getMapLocation().x && info.getMapLocation().y == that.info.getMapLocation().y;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(info.getMapLocation().x, info.getMapLocation().y);
+        return info.getMapLocation().x * 60  + info.getMapLocation().y;
     }
 
     public Team getOccupantTeam(){
